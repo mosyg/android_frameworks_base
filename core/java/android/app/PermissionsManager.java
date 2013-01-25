@@ -193,10 +193,10 @@ public class PermissionsManager {
            obj.put("time", System.currentTimeMillis());
            obj.put("aatype", "internet"); 
            obj.put("package", packageName+"");
-           String[] list = InetAddress.getAccessList();
+           String[] list = null;//InetAddress.getAccessList();
            if (list == null || list.length == 0 || list[0] == null) return null;
            obj.put("access", new JSONArray(Arrays.asList(list)));
-           InetAddress.clearAccessList();
+           //InetAddress.clearAccessList();
            return obj.toString(4);
        } catch (Exception e) { e.printStackTrace(); }
        return null;

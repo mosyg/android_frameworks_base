@@ -1975,6 +1975,14 @@ public abstract class Context {
     public static final String WALLPAPER_SERVICE = "wallpaper";
 
     /**
+     * Use with {@link #getSystemService} to retrieve a
+     * PermissionsManager.
+     *
+     * @see #getSystemService
+     */
+    public static final String PERMISSIONS_SERVICE = "permissions";
+
+    /**
      * Use with {@link #getSystemService} to retrieve a {@link
      * android.os.Vibrator} for interacting with the vibration hardware.
      *
