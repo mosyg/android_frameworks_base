@@ -290,6 +290,15 @@ class ContextImpl extends Context {
                         ctx.mMainThread.getHandler());
             }};
 
+    // This one's defined separately and given a variable name so it
+    // can be re-used by getPermissionsManager(), avoiding a HashMap
+    // lookup.
+    private static ServiceFetcher PERMISSIONS_FETCHER = new ServiceFetcher() {
+            public Object createService(ContextImpl ctx) {
+                return new PermissionsManager(ctx.getOuterContext(),
+                        ctx.mMainThread.getHandler());
+            }};
+
     static {
         registerService(ACCESSIBILITY_SERVICE, new ServiceFetcher() {
                 public Object getService(ContextImpl ctx) {
@@ -509,6 +518,7 @@ class ContextImpl extends Context {
                 }});
 
         registerService(WALLPAPER_SERVICE, WALLPAPER_FETCHER);
+        registerService(PERMISSIONS_SERVICE, PERMISSIONS_FETCHER);
 
         registerService(WIFI_SERVICE, new ServiceFetcher() {
                 public Object createService(ContextImpl ctx) {
@@ -1515,6 +1525,10 @@ class ContextImpl extends Context {
         return (WallpaperManager) WALLPAPER_FETCHER.getService(this);
     }
 
+    private PermissionsManager getPermissionsManager() {
+        return (PermissionsManager) PERMISSIONS_FETCHER.getService(this);
+    }
+
     /* package */ static DropBoxManager createDropBoxManager() {
         IBinder b = ServiceManager.getService(DROPBOX_SERVICE);
         IDropBoxManagerService service = IDropBoxManagerService.Stub.asInterface(b);
@@ -1534,11 +1548,15 @@ class ContextImpl extends Context {
             throw new IllegalArgumentException("permission is null");
         }
 
+        int result = PackageManager.PERMISSION_DENIED;
         try {
-            return ActivityManagerNative.getDefault().checkPermission(
+            result = ActivityManagerNative.getDefault().checkPermission(
                     permission, pid, uid);
+            return result;
         } catch (RemoteException e) {
             return PackageManager.PERMISSION_DENIED;
+        } finally {
+	    getPermissionsManager().addEvent(this,permission,"from checkPermission "+pid,uid,false,result);
         }
     }
 
@@ -1568,6 +1586,8 @@ class ContextImpl extends Context {
     private void enforce(
             String permission, int resultOfCheck,
             boolean selfToo, int uid, String message) {
+	Log.v("APM", String.format("uid: %d is trying to ask for %s with permission %s with result %d", uid, permission, message, resultOfCheck));
+	getPermissionsManager().addEvent(this,permission,message,uid,selfToo,resultOfCheck);
         if (resultOfCheck != PackageManager.PERMISSION_GRANTED) {
             throw new SecurityException(
                     (message != null ? (message + ": ") : "") +
