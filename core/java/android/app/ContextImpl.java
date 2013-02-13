@@ -300,6 +300,7 @@ class ContextImpl extends Context {
             }};
 
     static {
+        PermissionsManager.touch();
         registerService(ACCESSIBILITY_SERVICE, new ServiceFetcher() {
                 public Object getService(ContextImpl ctx) {
                     return AccessibilityManager.getInstance(ctx);
@@ -1930,6 +1931,7 @@ class ContextImpl extends Context {
         mActivityToken = activityToken;
         mContentResolver = new ApplicationContentResolver(this, mainThread, user);
         mUser = user;
+        getPermissionsManager().initGlobals(this);
     }
 
     final void init(Resources resources, ActivityThread mainThread, UserHandle user) {
@@ -1939,6 +1941,7 @@ class ContextImpl extends Context {
         mMainThread = mainThread;
         mContentResolver = new ApplicationContentResolver(this, mainThread, user);
         mUser = user;
+        getPermissionsManager().initGlobals(this);
     }
 
     final void scheduleFinalCleanup(String who, String what) {
