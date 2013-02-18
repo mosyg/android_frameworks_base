@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.io.ByteArrayOutputStream;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -57,10 +58,15 @@ public class PermissionsManager {
                 //Header[] headers = message.getHeaders();
                 //HttpParams params = message.getParams();
                 HttpEntity entity = message.getEntity();
-                if (entity instanceof UrlEncodedFormEntity) {
-                    UrlEncodedFormEntity urlent = (UrlEncodedFormEntity)entity;
+                //if (entity instanceof UrlEncodedFormEntity) {
+                    //UrlEncodedFormEntity urlent = (UrlEncodedFormEntity)entity;
+                if (entity.isRepeatable()) {
+                    HttpEntity urlent = entity;
                     try {
-                        String header = convertStreamToString(urlent.getContent());
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        urlent.writeTo(baos);
+                        String header = baos.toString();
+                        //String header = convertStreamToString(urlent.getContent());
                         Log.d("PermissionsManager", "onExecute: UrlEncodedEntity: "+header);
                         data = header;
                     } catch (IOException e) {
