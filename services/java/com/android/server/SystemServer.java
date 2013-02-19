@@ -58,6 +58,7 @@ import com.android.server.accessibility.AccessibilityManagerService;
 import com.android.server.am.ActivityManagerService;
 import com.android.server.am.BatteryStatsService;
 import com.android.server.display.DisplayManagerService;
+import com.android.server.PermissionService;
 import com.android.server.dreams.DreamManagerService;
 import com.android.server.input.InputManagerService;
 import com.android.server.net.NetworkPolicyManagerService;
@@ -356,6 +357,7 @@ class ServerThread extends Thread {
                 ServiceManager.addService(BluetoothAdapter.BLUETOOTH_MANAGER_SERVICE, bluetooth);
             }
 
+
         } catch (RuntimeException e) {
             Slog.e("System", "******************************************");
             Slog.e("System", "************ Failure starting core service", e);
@@ -453,6 +455,13 @@ class ServerThread extends Thread {
                 ServiceManager.addService(Context.STATUS_BAR_SERVICE, statusBar);
             } catch (Throwable e) {
                 reportWtf("starting StatusBarManagerService", e);
+            }
+
+            try {
+                Slog.i(TAG, "Permission Service");
+                ServiceManager.addService("Permission", new PermissionService(context));
+            } catch (Throwable e) {
+                reportWtf("Failure starting PermissionService Service", e);
             }
 
             try {
