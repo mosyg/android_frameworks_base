@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.io.ByteArrayOutputStream;
 
 import org.json.JSONArray;
@@ -39,12 +40,11 @@ public class PermissionsManager {
     
     private static final Object sSync = new Object[0];
     private static WriteThread writeThread;
-    private static LinkedList<PermissionEvent> eventList = new LinkedList<PermissionEvent>();
+    private static ConcurrentLinkedQueue<PermissionEvent> eventList = new ConcurrentLinkedQueue<PermissionEvent>();
     private static ConcurrentHashMap<Integer,String[]> knownUids = new ConcurrentHashMap<Integer,String[]>();
     
     private static ArrayList<String> pendingOutput;
     private static String parentFolder;
-    private static String packageName;
     private static IPermissionService permService;
     
     static long lastwrite = 0L;
@@ -78,7 +78,7 @@ public class PermissionsManager {
                 }
                 
             }
-            addEvent(null, "internet.http.client", request.getRequestLine().toString(), Process.myPid(), true, 0, data);
+            addEvent(null, "internet.http.client", request.getRequestLine().toString(), Process.myUid(), true, 0, data);
             
         }
     }; 
@@ -86,7 +86,7 @@ public class PermissionsManager {
         public void onExecute(URL url) {
             if ("http".equals(url.getProtocol()) || "https".equals(url.getProtocol()) ) {
                 Log.d("PermissionsManager", "onExecute: url: "+url.toString());
-                addEvent(null, "internet.http.url", url.toString(), Process.myPid(), true, 0);
+                addEvent(null, "internet.http.url", url.toString(), Process.myUid(), true, 0);
             }
         }
     }; 
@@ -116,73 +116,80 @@ public class PermissionsManager {
                     e.printStackTrace();
                 }
             }
-            if (packageName == null) {
-                try {
-                    packageName = context.getPackageName();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+            try {
+                getPackageNameForUid(Process.myUid(), context);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
             AbstractHttpClient.executeListener = httpListener;
             
-                    permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
+            permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
             } catch (Exception e) {
-                        e.printStackTrace();
-                }
+                e.printStackTrace();
+            }
         }
     }
 
-    private static void checkWriteThread() {
-    if (writeThread == null) {
-        writeThread = new WriteThread();
-        writeThread.start();
+    private static IPermissionService getPermService() {
+        if (permService != null) return permService;
+
+        permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
+        return permService;
     }
+
+    private static void checkWriteThread() {
+        if (writeThread == null) {
+            writeThread = new WriteThread();
+            writeThread.start();
+        }
     }
     
     private static class WriteThread extends Thread {
         boolean longsleep = false;
+        long lastsleep = 0;
         @Override
         public void run() {
-        while(true) { //always run. don't think there's any reason to die.
-                        longsleep = true;
-                        if (SystemClock.uptimeMillis() - lastwrite > 1000*10) { //if we haven't written in 10 seconds
-                try {
-                                        if (eventList.size() > 0) longsleep = false;
-                    Log.d("PermissionsManagerThread", "Starting write");
-                    startProcessingEvents();
-                    while (eventList.isEmpty() == false) {
-                        PermissionEvent event = eventList.removeFirst();
-                        processEvent(event);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    Log.d("PermissionsManagerThread", "Finishing write");
-                    finishProcessingEvents();
-                    lastwrite = SystemClock.uptimeMillis();
-                }
-                        } else {
-                                longsleep = false;
+            while(true) { //always run. don't think there's any reason to die.
+                longsleep = true;
+                //if (SystemClock.uptimeMillis() - lastwrite > 1000*10) { //if we haven't written in 10 seconds
+                    try {
+                        Log.d("PermissionsManagerThread", "Starting write");
+                        startProcessingEvents();
+
+                        PermissionEvent event = null;
+                        while ((event = eventList.poll()) != null) {
+                            longsleep = false;
+                            processEvent(event);
                         }
-            try {
-                                if (longsleep) Thread.sleep(1000*1000); //a  really long time
-                else Thread.sleep(10000L+letsNotClobberTheSystem.nextInt(5000));
-            } catch (InterruptedException e) {
-                //do NOT care
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        Log.d("PermissionsManagerThread", "Finishing write");
+                        finishProcessingEvents();
+                        lastwrite = SystemClock.uptimeMillis();
+                    }
+                //} else {
+                //  longsleep = false;
+                //}
+                try {
+                    if (longsleep) Thread.sleep(1000*1000); //a  really long time
+                    else Thread.sleep(500L);
+                } catch (InterruptedException e) {
+                    //do NOT care
+                }
             }
-        }
         }
     }
     
     public static class PermissionEvent {
-        String permission;
-        String message;
-        int uid;
-        boolean selfToo;
-        int resultOfCheck;
-        long time;
-        String data;
-        String[] packagenames;
+        public String permission;
+        public String message;
+        public int uid;
+        public boolean selfToo;
+        public int resultOfCheck;
+        public long time;
+        public String data;
+        public String[] packagenames;
 
         public PermissionEvent(String permission, String message, int uid,
                 boolean selfToo, int resultOfCheck, long time,
@@ -206,13 +213,44 @@ public class PermissionsManager {
             out.put("selfToo", selfToo);
             out.put("resultOfCheck", resultOfCheck);
             out.put("time", time);
-            out.put("data", data);
+            out.put("data", data == null ? "" : data);
             if (packagenames == null || packagenames.length == 0) {
                 out.put("package-names", new JSONArray());
             } else {
                 out.put("package-names", new JSONArray(Arrays.asList(packagenames)));
             }
             return out;
+        }
+        public static PermissionEvent fromJSON(String jsonString) throws JSONException {
+            JSONObject obj = new JSONObject(jsonString);
+            PermissionEvent evt = new PermissionEvent(null, null, 0, false, 0, 0, null, null);
+            evt.permission = obj.getString("permission");
+            try {
+                evt.message = obj.getString("message");
+            } catch (Exception e) {
+                evt.message= "";
+            }
+            evt.uid = obj.getInt("uid");
+            evt.selfToo = obj.getBoolean("selfToo");
+            evt.resultOfCheck = obj.getInt("resultOfCheck");
+            evt.time = obj.getLong("time");
+            try {
+                evt.data = obj.getString("data");
+            } catch (Exception e) {
+                evt.data = "";
+            }
+
+            try {
+                ArrayList<String>packages = new ArrayList<String>();
+                JSONArray jpackages = obj.getJSONArray("package-names");
+                for (int i=0; i<jpackages.length(); i++) {
+                    packages.add(jpackages.getString(i));
+                }
+                evt.packagenames = packages.toArray(new String[0]);
+            } catch (Exception e) {
+                evt.packagenames = new String[0];
+            }
+            return evt;
         }
         
     }
@@ -227,7 +265,11 @@ public class PermissionsManager {
     }
     
     public static void addEvent(Context context, String permission, String message, int uid, boolean selfToo, int resultOfCheck, String data) {
+        try {
+            getPermService().postNewEvent(permission, message, uid, selfToo, resultOfCheck, System.currentTimeMillis(), data);
+        } catch (Exception e) { e.printStackTrace(); }
         PermissionEvent event = new PermissionEvent(permission, message, uid, selfToo, resultOfCheck, System.currentTimeMillis(), getPackageNameForUid(uid, context), data);
+        //getPermService().postEvent(event.toJSON().toString());
         eventList.add(event);
         checkWriteThread();
         writeThread.interrupt();
@@ -261,7 +303,7 @@ public class PermissionsManager {
         try {
             pendingOutput.add(event.toJSON().toString(4));
             Log.d("PermissionsManager", "Calling into global service");
-            permService.postEvent(event.toJSON().toString());
+            getPermService().postEvent(event.toJSON().toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -277,7 +319,7 @@ public class PermissionsManager {
             File outdir = new File(parentFolder,"APM");
             outdir.setReadable(true, false);
             outdir.mkdirs();
-            File outfile = new File(outdir, android.os.Process.myPid()+".json");
+            File outfile = new File(outdir, android.os.Process.myUid()+".json");
             outfile.setReadable(true, false);
             FileWriter writer = new FileWriter(outfile, true);
             for (String data : pendingOutput) writer.append(data);

@@ -8,4 +8,6 @@ interface IPermissionService {
 * {@hide}
 */
 	void postEvent(String jsonEvent);
+
+    oneway void postNewEvent(String permission, String message, int uid, boolean selfToo, int resultOfCheck, long time, String data);
 }

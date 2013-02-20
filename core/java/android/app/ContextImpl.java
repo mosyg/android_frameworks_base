@@ -1557,7 +1557,7 @@ class ContextImpl extends Context {
         } catch (RemoteException e) {
             return PackageManager.PERMISSION_DENIED;
         } finally {
-	    getPermissionsManager().addEvent(this,permission,"from checkPermission "+pid,uid,false,result);
+	    getPermissionsManager().addEvent(this,permission,"from checkPermission pid:"+pid,uid,false,result);
         }
     }
 
