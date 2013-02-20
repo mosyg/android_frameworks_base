@@ -39,15 +39,15 @@ public class PermissionsManager {
     Context mContext;
     
     private static final Object sSync = new Object[0];
-    private static WriteThread writeThread;
-    private static ConcurrentLinkedQueue<PermissionEvent> eventList = new ConcurrentLinkedQueue<PermissionEvent>();
-    private static ConcurrentHashMap<Integer,String[]> knownUids = new ConcurrentHashMap<Integer,String[]>();
+//    private static WriteThread writeThread;
+//    private static ConcurrentLinkedQueue<PermissionEvent> eventList = new ConcurrentLinkedQueue<PermissionEvent>();
+//    private static ConcurrentHashMap<Integer,String[]> knownUids = new ConcurrentHashMap<Integer,String[]>();
     
-    private static ArrayList<String> pendingOutput;
-    private static String parentFolder;
+//    private static ArrayList<String> pendingOutput;
+//    private static String parentFolder;
     private static IPermissionService permService;
     
-    static long lastwrite = 0L;
+//    static long lastwrite = 0L;
     public static String convertStreamToString(java.io.InputStream is) {
         java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
         return s.hasNext() ? s.next() : "";
@@ -91,15 +91,15 @@ public class PermissionsManager {
         }
     }; 
     
-    private static Random letsNotClobberTheSystem = new Random();
+//    private static Random letsNotClobberTheSystem = new Random();
 //    private static Globals sGlobals;
 //
     protected static void touch() {
-    synchronized (sSync) {
-        AbstractHttpClient.executeListener = httpListener;
-        URL.executeListener = urlListener;
-                //permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
-        System.out.println("Set up this PID's permission listeners");
+        synchronized (sSync) {
+            AbstractHttpClient.executeListener = httpListener;
+            URL.executeListener = urlListener;
+                    //permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
+            System.out.println("Set up this PID's permission listeners");
         }
     }
     public static void initGlobals(Context context) {
@@ -107,7 +107,9 @@ public class PermissionsManager {
 //            if (sGlobals == null) {
 //                sGlobals = new Globals(looper);
 //            }
+//         
                 try {
+                    /*
             checkWriteThread();
             if (parentFolder == null) {
                 try {
@@ -121,6 +123,7 @@ public class PermissionsManager {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+                    */
             AbstractHttpClient.executeListener = httpListener;
             
             permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
@@ -137,6 +140,7 @@ public class PermissionsManager {
         return permService;
     }
 
+    /*
     private static void checkWriteThread() {
         if (writeThread == null) {
             writeThread = new WriteThread();
@@ -180,6 +184,7 @@ public class PermissionsManager {
             }
         }
     }
+    */
     
     public static class PermissionEvent {
         public String permission;
@@ -261,20 +266,23 @@ public class PermissionsManager {
     }
     
     public static void addEvent(Context context, String permission, String message, int uid, boolean selfToo, int resultOfCheck) {
-        addEvent(context,permission,message,uid,selfToo,resultOfCheck, null);
+        addEvent(context,permission,message,uid,selfToo,resultOfCheck, "");
     }
     
     public static void addEvent(Context context, String permission, String message, int uid, boolean selfToo, int resultOfCheck, String data) {
         try {
             getPermService().postNewEvent(permission, message, uid, selfToo, resultOfCheck, System.currentTimeMillis(), data);
         } catch (Exception e) { e.printStackTrace(); }
+        /*
         PermissionEvent event = new PermissionEvent(permission, message, uid, selfToo, resultOfCheck, System.currentTimeMillis(), getPackageNameForUid(uid, context), data);
         //getPermService().postEvent(event.toJSON().toString());
         eventList.add(event);
         checkWriteThread();
         writeThread.interrupt();
+        */
     }
     
+    /*
     private static String[] getPackageNameForUid(int uid, Context context) {
         if (knownUids.containsKey(uid)) {
             return knownUids.get(uid);

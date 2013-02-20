@@ -52,6 +52,7 @@ public class PermissionService extends IPermissionService.Stub {
         Log.i(TAG, "Spawned worker thread");
     }
  
+    /*
     public void postEvent(String jsonEvent) {
         Log.i(TAG, "postEvent " + jsonEvent.length() + " in PID: "+Process.myPid());
         try {
@@ -67,6 +68,7 @@ public class PermissionService extends IPermissionService.Stub {
         //msg.arg1 = val;
         //mHandler.sendMessage(msg);
     }
+    */
  
     public void postNewEvent(String permission, String message, int uid, boolean selfToo, int resultOfCheck, long time, String data) {
         Log.i(TAG, "postNewEvent with all the details: "+permission+" message: "+message);
