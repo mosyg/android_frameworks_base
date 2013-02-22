@@ -20,9 +20,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.os.UserHandle;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
 import android.os.Environment;
 import android.os.IPermissionService;
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -40,6 +45,12 @@ public class PermissionService extends IPermissionService.Stub {
     private Context mContext;
     private ConcurrentLinkedQueue<PermissionEvent> eventList = new ConcurrentLinkedQueue<PermissionEvent>();
     private ConcurrentHashMap<Integer,String[]> knownUids = new ConcurrentHashMap<Integer,String[]>();
+
+
+    private Notification mNotification;    
+    
+
+
 
     public PermissionService(Context context) {
         super();
@@ -72,14 +83,15 @@ public class PermissionService extends IPermissionService.Stub {
  
     public void postNewEvent(String permission, String message, int uid, boolean selfToo, int resultOfCheck, long time, String data) {
         Log.i(TAG, "postNewEvent with all the details: "+permission+" message: "+message);
-        PermissionEvent event = new PermissionEvent(permission, message+" - 2", uid, selfToo, resultOfCheck, time, getPackageNameForUid(uid, mContext), data);
+        PermissionEvent event = new PermissionEvent(permission, message, uid, selfToo, resultOfCheck, time, getPackageNameForUid(uid, mContext), data);
         eventList.add(event);
+        process(event);
     }
     
     private String[] getPackageNameForUid(int uid, Context context) {
-        if (knownUids.containsKey(uid)) {
-            return knownUids.get(uid);
-        }
+        //if (knownUids.containsKey(uid)) {
+        //    return knownUids.get(uid);
+        //}
         if (context != null) {
             String[] packages = context.getPackageManager().getPackagesForUid(uid);
             if (packages != null && packages.length >= 1) {
@@ -90,12 +102,6 @@ public class PermissionService extends IPermissionService.Stub {
             return new String[] { "unknown" };
         }
     }
-
-
-
-
-
-
 
     private class WriteThread extends Thread {
         public void run() {
@@ -131,6 +137,67 @@ public class PermissionService extends IPermissionService.Stub {
         }
     }
 
+    private void process(PermissionEvent event) {
+        if ("android.permission.READ_CONTACTS".equals(event.permission)) {
+            Message msg = Message.obtain();
+            msg.what = PermissionWorkerHandler.MESSAGE_DISPLAY;
+            SecurityEvent secevent = new SecurityEvent();
+            secevent.perm = event;
+            msg.obj = secevent; 
+            mHandler.sendMessage(msg);
+        }
+    }
+
+
+
+    
+    private class SecurityEvent {  
+        PermissionEvent perm;
+    }
+    
+
+    private void setNotification(SecurityEvent event) {
+        NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager == null) {
+            return;
+        }
+
+        String title = getTitle(event);//"Permission"; //getNotifTitle(notif, mContext);
+        String message = getMessage(event); //"A permission is being used"; //getNotifMessage(notif, mContext);
+
+        Log.d(TAG, "setPermissionNotification, notifyId: " + 0 +
+                ", title: " + title +
+                ", message: " + message);
+
+        // if not to popup dialog immediately, pending intent will open the dialog
+        PendingIntent pi = PendingIntent.getBroadcast(mContext, 0, makeDialogIntent(event), 0);                
+
+        // Construct Notification
+        mNotification = new Notification.Builder(mContext)
+             .setContentTitle(title)
+             .setContentText(message)
+             .setSmallIcon(com.android.internal.R.drawable.stat_sys_gps_on)
+             .setContentIntent(pi)
+             .setAutoCancel(true)
+             .setOngoing(false)
+             .setSound(null)
+             .build();
+
+
+        notificationManager.notifyAsUser(null, 0, mNotification, UserHandle.ALL);
+
+    }
+
+    private Intent makeDialogIntent(SecurityEvent event) {
+        return new Intent();
+    }
+
+    private String getTitle(SecurityEvent event) {
+        return event.perm.permission;
+    }
+    private String getMessage(SecurityEvent event) {
+        return event.perm.message;
+    }
 
 
     private class PermissionWorkerThread extends Thread {
@@ -145,12 +212,13 @@ public class PermissionService extends IPermissionService.Stub {
     }
  
     private class PermissionWorkerHandler extends Handler {
-        private static final int MESSAGE_SET = 0;
+        private static final int MESSAGE_DISPLAY = 0;
         @Override
         public void handleMessage(Message msg) {
             try {
-                if (msg.what == MESSAGE_SET) {
+                if (msg.what == MESSAGE_DISPLAY) {
                     Log.i(TAG, "set message received: " + msg.arg1 + " in PID: "+Process.myPid());
+                    setNotification((SecurityEvent)msg.obj);
                 }
             } catch (Exception e) {
                 // Log, don't crash!
