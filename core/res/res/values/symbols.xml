@@ -982,6 +982,18 @@
   <java-symbol type="drawable" name="stat_notify_rssi_in_range" />
   <java-symbol type="drawable" name="stat_sys_gps_on" />
   <java-symbol type="drawable" name="stat_sys_tether_wifi" />
+  <java-symbol type="drawable" name="sys_access_calllog_normal" />
+  <java-symbol type="drawable" name="sys_access_mail_normal" />
+  <java-symbol type="drawable" name="sys_access_phoneinfo_normal" />
+  <java-symbol type="drawable" name="sys_access_camera_normal" />
+  <java-symbol type="drawable" name="sys_access_messages_normal" />
+  <java-symbol type="drawable" name="sys_access_contacts_normal" />
+  <java-symbol type="drawable" name="sys_access_mic_normal" />
+  <java-symbol type="drawable" name="sys_access_events_normal" />
+  <java-symbol type="drawable" name="sys_access_personal_normal" />
+  <java-symbol type="drawable" name="sys_write_contacts_normal" />
+  <java-symbol type="drawable" name="sys_write_events_normal" />
+  <java-symbol type="drawable" name="sys_write_messages_normal" />
   <java-symbol type="drawable" name="status_bar_background" />
   <java-symbol type="drawable" name="sym_keyboard_shift" />
   <java-symbol type="drawable" name="sym_keyboard_shift_locked" />
