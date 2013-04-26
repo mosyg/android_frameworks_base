@@ -9,4 +9,5 @@ interface IPermissionService {
 */
 
     oneway void postNewEvent(String permission, String message, int uid, boolean selfToo, int resultOfCheck, long time, String data);
+    List<String> getEvents(String packagename);
 }

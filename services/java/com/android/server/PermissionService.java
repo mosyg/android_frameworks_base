@@ -12,13 +12,15 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.*;
+import java.util.List;
 import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.io.ByteArrayOutputStream;
 import java.lang.CharSequence;
 import java.lang.StringBuilder;
+import java.io.*;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -30,6 +32,7 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.os.UserHandle;
 import android.app.PendingIntent;
+import android.net.Uri;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Environment;
@@ -139,6 +142,7 @@ public class PermissionService extends IPermissionService.Stub {
             while (true) {
                 try {
                     //Log.i(TAG, "Starting write in global thread");
+                    HashMap<String,ArrayList<PermissionEvent>> eventsByPackage = new HashMap<String,ArrayList<PermissionEvent>>();
                     File outdir = new File(Environment.getDataDirectory(), "APM");
                     outdir.setReadable(true, false);
                     outdir.mkdirs();
@@ -150,11 +154,34 @@ public class PermissionService extends IPermissionService.Stub {
                         //Log.i(TAG, "writing item in global thread "+next.message);
                         writer.append(next.toJSON().toString(4));
                         writer.append("\n");
+                        if (isUserApp(next)) {
+                            PermissionEvent event = next;
+                            String key = "unknown";
+                            if (event.packagenames != null && event.packagenames.length > 0) 
+                                key = event.packagenames[0];
+                            if (eventsByPackage.containsKey(key) == false) 
+                                eventsByPackage.put(key, new ArrayList<PermissionEvent>());
+                            eventsByPackage.get(key).add(event);
+                            //Log.i(TAG, "Adding "+event+" to "+key);
+                        }
                     }
                     //for (String data : pendingOutput) writer.append(data);
                     writer.flush();
                     writer.close();
                     //Log.i(TAG, "finishing write in global thread to "+outfile.getAbsolutePath());
+
+                    for (Map.Entry<String,ArrayList<PermissionEvent>> pair : eventsByPackage.entrySet()) {
+                        outfile = new File(outdir,pair.getKey()+".json");
+                        outfile.setReadable(true, false);
+                        writer = new FileWriter(outfile, true);
+                        //Log.i(TAG, "writing "+pair.getValue().size()+" events to "+outfile.getAbsolutePath());
+                        for ( PermissionEvent event : pair.getValue()) {
+                            writer.append(event.toJSON().toString());
+                            writer.append("\n");
+                        }
+                        writer.flush();
+                        writer.close();
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -197,6 +224,35 @@ public class PermissionService extends IPermissionService.Stub {
         msg.what = PermissionWorkerHandler.MESSAGE_DISPLAY;
         msg.obj = event; 
         mHandler.sendMessage(msg);
+    }
+
+
+    public List<String> getEvents(String packagename) {
+        mContext.checkCallingPermission("android.permission.GET_PERMISSION_HISTORY");
+        try {
+            File outdir = new File(Environment.getDataDirectory(), "APM");
+            File outfile = new File(outdir,packagename+".json");
+            BufferedReader reader = new BufferedReader(new FileReader(outfile));
+            List<String> lines = new ArrayList<String>();
+            for (String line=reader.readLine(); line != null; line=reader.readLine()) {
+                lines.add(line);
+            }
+            try {
+                for (PermissionEvent event : eventList) {
+                    if (event.packagenames != null && event.packagenames.length > 0) { 
+                        String key = event.packagenames[0];
+                        if (packagename.equals(key)) {
+                            lines.add(event.toJSON().toString());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return lines;
+        } catch (Exception e) {
+            return null;
+        }
     }
     
     
@@ -274,8 +330,8 @@ public class PermissionService extends IPermissionService.Stub {
 
 
         private long determineTimeout(SecurityEvent event) {
-            if (event.severity == SEVERITY_LOW) return 1000;
-            if (event.severity == SEVERITY_MED) return 1000*10;
+            if (event.severity == SEVERITY_LOW) return 3000;
+            if (event.severity == SEVERITY_MED) return 1000*15;
             if (event.severity >= SEVERITY_HIGH) return -1;
             else return -1;
         }
@@ -300,6 +356,7 @@ public class PermissionService extends IPermissionService.Stub {
 
             String title = getTitle(ongoingEvents);//"Permission"; //getNotifTitle(notif, mContext);
             String message = getMessage(ongoingEvents); //"A permission is being used"; //getNotifMessage(notif, mContext);
+            String longmessage = getLongMessage(ongoingEvents); //"A permission is being used"; //getNotifMessage(notif, mContext);
             int icon = getIcon(ongoingEvents);
 
             Log.d(TAG, "setPermissionNotification, notifyId: " + currentid +
@@ -307,15 +364,16 @@ public class PermissionService extends IPermissionService.Stub {
                     ", message: " + message);
 
             // if not to popup dialog immediately, pending intent will open the dialog
-            PendingIntent pi = PendingIntent.getBroadcast(mContext, 0, makeDialogIntent(ongoingEvents), 0);                
+            PendingIntent pi = PendingIntent.getActivity(mContext, (int)System.currentTimeMillis(), makeDialogIntent(ongoingEvents), 0);                
 
             // Construct Notification
             mNotification = new Notification.Builder(mContext)
                  .setContentTitle(title)
                  .setContentText(message)
                  .setSmallIcon(icon)
+                 .setStyle(new Notification.BigTextStyle().bigText(longmessage))
                  .setContentIntent(pi)
-                 .setAutoCancel(true)
+                 .setAutoCancel(false)
                  .setOngoing(false)
                  .setSound(null)
                  .build();
@@ -326,7 +384,10 @@ public class PermissionService extends IPermissionService.Stub {
         }
 
         private Intent makeDialogIntent(Set<SecurityEvent> events) {
-            return new Intent();
+            List<SecurityEvent> severe = getMostSevere(events);
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setData(Uri.parse("permissions://"+severe.get(0).packagename));
+            return i;
         }
 
         private List<SecurityEvent> getMostSevere(Set<SecurityEvent> events) {
@@ -362,6 +423,20 @@ public class PermissionService extends IPermissionService.Stub {
             builder.append(severe.get(0).permission.display);
             if (events.size() > 1) {
                 builder.append(", and more");
+            }
+            return builder.toString();
+        }
+        private String getLongMessage(Set<SecurityEvent> events) {
+            StringBuilder builder = new StringBuilder();
+
+            List<SecurityEvent> severe = getMostSevere(events);
+            builder.append(severe.get(0).appname.toString());
+            builder.append(" has ");
+            boolean first = true;
+            for (SecurityEvent event : severe) {
+                if (first == false) builder.append(", ");
+                builder.append(event.permission.display);
+                first = false;
             }
             return builder.toString();
         }
@@ -414,6 +489,7 @@ public class PermissionService extends IPermissionService.Stub {
         new PermissionDetector(new Permission[] {
             new Permission("android.permission.READ_PHONE_STATE", "Phone Identity Accessed", "read your Phone Identity", com.android.internal.R.drawable.sys_access_phoneinfo_normal), 
             new Permission("android.permission.GET_ACCOUNTS", "Accounts Accessed", "read your Account info", com.android.internal.R.drawable.sys_access_personal_normal), 
+            new Permission("android.permission.ACCESS_COARSE_LOCATION", "Location Accessed", "got your Location", com.android.internal.R.drawable.sys_access_phoneinfo_normal),
         }, SEVERITY_LOW),
         new PermissionDetector(new Permission[] {
             new Permission("android.permission.READ_CONTACTS", "Contacts Accessed", "read your Contacts", com.android.internal.R.drawable.sys_access_contacts_normal),
@@ -422,6 +498,7 @@ public class PermissionService extends IPermissionService.Stub {
             new Permission("android.permission.RECORD_AUDIO", "Mic Recording", "recorded your Phone's Microphone", com.android.internal.R.drawable.sys_access_mic_normal),
             //new Permission("android.permission.CAMERA", "Camera Recording", "recorded a video", com.android.internal.R.drawable.sys_access_mic_normal),
             new Permission("android.permission.READ_SMS", "Messages Accessed", "read your Messages", com.android.internal.R.drawable.sys_access_messages_normal),
+            new Permission("android.permission.ACCESS_FINE_LOCATION", "GPS Location Accessed", "got your GPS Location", com.android.internal.R.drawable.sys_access_phoneinfo_normal),
         }, SEVERITY_MED),
         new PermissionDetector(new Permission[] {
             new Permission("android.permission.WRITE_CONTACTS", "Contacts Written", "wrote to your Contacts", com.android.internal.R.drawable.sys_write_contacts_normal),

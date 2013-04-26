@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.io.ByteArrayOutputStream;
@@ -41,8 +42,83 @@ import android.hardware.Camera;
 import android.hardware.Camera.CameraListener;
 
 public class PermissionsManager {
+
+    public static class PermissionEvent {
+        public String permission;
+        public String message;
+        public int uid;
+        public boolean selfToo;
+        public int resultOfCheck;
+        public long time;
+        public String data;
+        public String[] packagenames;
+
+        public PermissionEvent(String permission, String message, int uid,
+                boolean selfToo, int resultOfCheck, long time,
+                String[] packagenames, String data) {
+            super();
+            this.permission = permission;
+            this.message = message;
+            this.uid = uid;
+            this.selfToo = selfToo;
+            this.resultOfCheck = resultOfCheck;
+            this.time = time;
+            this.packagenames = packagenames;
+                    this.data = data;
+        }
+        
+        public JSONObject toJSON() throws JSONException {
+            JSONObject out = new JSONObject();
+            out.put("permission", permission);
+            out.put("message", message);
+            out.put("uid", uid);
+            out.put("selfToo", selfToo);
+            out.put("resultOfCheck", resultOfCheck);
+            out.put("time", time);
+            out.put("data", data == null ? "" : data);
+            if (packagenames == null || packagenames.length == 0) {
+                out.put("package-names", new JSONArray());
+            } else {
+                out.put("package-names", new JSONArray(Arrays.asList(packagenames)));
+            }
+            return out;
+        }
+        public static PermissionEvent fromJSON(String jsonString) throws JSONException {
+            JSONObject obj = new JSONObject(jsonString);
+            PermissionEvent evt = new PermissionEvent(null, null, 0, false, 0, 0, null, null);
+            evt.permission = obj.getString("permission");
+            try {
+                evt.message = obj.getString("message");
+            } catch (Exception e) {
+                evt.message= "";
+            }
+            evt.uid = obj.getInt("uid");
+            evt.selfToo = obj.getBoolean("selfToo");
+            evt.resultOfCheck = obj.getInt("resultOfCheck");
+            evt.time = obj.getLong("time");
+            try {
+                evt.data = obj.getString("data");
+            } catch (Exception e) {
+                evt.data = "";
+            }
+
+            try {
+                ArrayList<String>packages = new ArrayList<String>();
+                JSONArray jpackages = obj.getJSONArray("package-names");
+                for (int i=0; i<jpackages.length(); i++) {
+                    packages.add(jpackages.getString(i));
+                }
+                evt.packagenames = packages.toArray(new String[0]);
+            } catch (Exception e) {
+                evt.packagenames = new String[0];
+            }
+            return evt;
+        }
+        
+    }
     
-    Context mContext;
+
+
     
     private static final Object sSync = new Object[0];
     private static IPermissionService permService;
@@ -141,6 +217,7 @@ public class PermissionsManager {
                 AbstractHttpClient.executeListener = httpListener;
                 
                 permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
+                sendOnInit();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -155,86 +232,6 @@ public class PermissionsManager {
         return permService;
     }
 
-    
-    public static class PermissionEvent {
-        public String permission;
-        public String message;
-        public int uid;
-        public boolean selfToo;
-        public int resultOfCheck;
-        public long time;
-        public String data;
-        public String[] packagenames;
-
-        public PermissionEvent(String permission, String message, int uid,
-                boolean selfToo, int resultOfCheck, long time,
-                String[] packagenames, String data) {
-            super();
-            this.permission = permission;
-            this.message = message;
-            this.uid = uid;
-            this.selfToo = selfToo;
-            this.resultOfCheck = resultOfCheck;
-            this.time = time;
-            this.packagenames = packagenames;
-                    this.data = data;
-        }
-        
-        public JSONObject toJSON() throws JSONException {
-            JSONObject out = new JSONObject();
-            out.put("permission", permission);
-            out.put("message", message);
-            out.put("uid", uid);
-            out.put("selfToo", selfToo);
-            out.put("resultOfCheck", resultOfCheck);
-            out.put("time", time);
-            out.put("data", data == null ? "" : data);
-            if (packagenames == null || packagenames.length == 0) {
-                out.put("package-names", new JSONArray());
-            } else {
-                out.put("package-names", new JSONArray(Arrays.asList(packagenames)));
-            }
-            return out;
-        }
-        public static PermissionEvent fromJSON(String jsonString) throws JSONException {
-            JSONObject obj = new JSONObject(jsonString);
-            PermissionEvent evt = new PermissionEvent(null, null, 0, false, 0, 0, null, null);
-            evt.permission = obj.getString("permission");
-            try {
-                evt.message = obj.getString("message");
-            } catch (Exception e) {
-                evt.message= "";
-            }
-            evt.uid = obj.getInt("uid");
-            evt.selfToo = obj.getBoolean("selfToo");
-            evt.resultOfCheck = obj.getInt("resultOfCheck");
-            evt.time = obj.getLong("time");
-            try {
-                evt.data = obj.getString("data");
-            } catch (Exception e) {
-                evt.data = "";
-            }
-
-            try {
-                ArrayList<String>packages = new ArrayList<String>();
-                JSONArray jpackages = obj.getJSONArray("package-names");
-                for (int i=0; i<jpackages.length(); i++) {
-                    packages.add(jpackages.getString(i));
-                }
-                evt.packagenames = packages.toArray(new String[0]);
-            } catch (Exception e) {
-                evt.packagenames = new String[0];
-            }
-            return evt;
-        }
-        
-    }
-
-    /*package*/ PermissionsManager(Context context, Handler handler) {
-        mContext = context;
-        initGlobals(context);
-    }
-    
     public static void addEvent(Context context, String permission, String message, int uid, boolean selfToo, int resultOfCheck) {
         addEvent(context,permission,message,uid,selfToo,resultOfCheck, "");
     }
@@ -244,6 +241,40 @@ public class PermissionsManager {
             getPermService().postNewEvent(permission, message, uid, selfToo, resultOfCheck, System.currentTimeMillis(), data);
         } catch (Exception e) { e.printStackTrace(); }
     }
+
+
+
+    
+    Context mContext;
+
+    /*package*/ PermissionsManager(Context context, Handler handler) {
+        mContext = context;
+        initGlobals(context);
+    }
+
+
+    private static void sendOnInit() {
+        addEvent(null, "android.activity.ACTION", "init", Process.myUid(), true, 0);
+    }
+    private void sendOnForeground() {
+        addEvent(null, "android.activity.ACTION", "foreground", Process.myUid(), true, 0);
+    }
+    private void sendOnBackground() {
+        addEvent(null, "android.activity.ACTION", "background", Process.myUid(), true, 0);
+    }
+
+    public List<String> getRawEvents(String packagename) {
+        try {
+            return getPermService().getEvents(packagename);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
+    //public JSONArray get
+    
 }
 
 
