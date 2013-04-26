@@ -1557,7 +1557,8 @@ class ContextImpl extends Context {
         } catch (RemoteException e) {
             return PackageManager.PERMISSION_DENIED;
         } finally {
-	    getPermissionsManager().addEvent(this,permission,"from checkPermission pid:"+pid,uid,false,result);
+            /* Event logging for AndroMEDA */
+            getPermissionsManager().addEvent(this,permission,"from checkPermission pid:"+pid,uid,false,result);
         }
     }
 
@@ -1587,8 +1588,9 @@ class ContextImpl extends Context {
     private void enforce(
             String permission, int resultOfCheck,
             boolean selfToo, int uid, String message) {
-	Log.v("APM", String.format("uid: %d is trying to ask for %s with permission %s with result %d", uid, permission, message, resultOfCheck));
-	getPermissionsManager().addEvent(this,permission,message,uid,selfToo,resultOfCheck);
+        /* Event logging for AndroMEDA */
+        //Log.v("APM", String.format("uid: %d is trying to ask for %s with permission %s with result %d", uid, permission, message, resultOfCheck));
+        getPermissionsManager().addEvent(this,permission,message,uid,selfToo,resultOfCheck);
         if (resultOfCheck != PackageManager.PERMISSION_GRANTED) {
             throw new SecurityException(
                     (message != null ? (message + ": ") : "") +
@@ -1931,6 +1933,7 @@ class ContextImpl extends Context {
         mActivityToken = activityToken;
         mContentResolver = new ApplicationContentResolver(this, mainThread, user);
         mUser = user;
+        /* initializaton for AndroMEDA */
         getPermissionsManager().initGlobals(this);
     }
 
@@ -1941,6 +1944,7 @@ class ContextImpl extends Context {
         mMainThread = mainThread;
         mContentResolver = new ApplicationContentResolver(this, mainThread, user);
         mUser = user;
+        /* initializaton for AndroMEDA */
         getPermissionsManager().initGlobals(this);
     }
 

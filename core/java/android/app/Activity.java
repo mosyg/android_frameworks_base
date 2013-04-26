@@ -1040,6 +1040,7 @@ public class Activity extends ContextThemeWrapper
         }
 
         getApplication().dispatchActivityStarted(this);
+        //Log it here.
     }
 
     /**
