@@ -78,6 +78,14 @@ public class MediaRecorder
     }
     private final static String TAG = "MediaRecorder";
 
+    public static interface MediaRecorderListener {
+        public void onInitAudio();
+        public void onInitVideo();
+        public void onStart();
+        public void onStop();
+    }
+    public static MediaRecorderListener listener;
+
     // The two fields below are accessed by native methods
     @SuppressWarnings("unused")
     private int mNativeContext;
@@ -305,6 +313,24 @@ public class MediaRecorder
      */
     public native void setAudioSource(int audio_source)
             throws IllegalStateException;
+
+    public void postAudioRecordEvent() {
+        Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. AUDIO "+listener);
+        if (listener != null) listener.onInitAudio();
+    }
+    public void postVideoRecordEvent() {
+        Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. VIDEO "+listener);
+        if (listener != null) listener.onInitVideo();
+    }
+    public void postStartRecordEvent() {
+        Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. START "+listener);
+        if (listener != null) listener.onStart();
+    }
+    public void postStopRecordEvent() {
+        Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. STOP "+listener);
+        if (listener != null) listener.onStop();
+    }
+
 
     /**
      * Gets the maximum value for audio sources.

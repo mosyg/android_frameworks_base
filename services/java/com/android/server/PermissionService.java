@@ -99,7 +99,8 @@ public class PermissionService extends IPermissionService.Stub {
     */
  
     public void postNewEvent(String permission, String message, int uid, boolean selfToo, int resultOfCheck, long time, String data) {
-        Log.i(TAG, "postNewEvent with all the details: "+permission+" message: "+message);
+        if (uid >= 10000)
+            Log.i(TAG, "postNewEvent with all the details: "+permission+" message: "+message);
         PermissionEvent event = new PermissionEvent(permission, message, uid, selfToo, resultOfCheck, time, getPackageNameForUid(uid, mContext), data);
         eventList.add(event);
         process(event);
@@ -137,7 +138,7 @@ public class PermissionService extends IPermissionService.Stub {
         public void run() {
             while (true) {
                 try {
-                    Log.i(TAG, "Starting write in global thread");
+                    //Log.i(TAG, "Starting write in global thread");
                     File outdir = new File(Environment.getDataDirectory(), "APM");
                     outdir.setReadable(true, false);
                     outdir.mkdirs();
@@ -146,14 +147,14 @@ public class PermissionService extends IPermissionService.Stub {
                     FileWriter writer = new FileWriter(outfile, true);
                     PermissionEvent next = null;
                     while ( (next = eventList.poll()) != null) {
-                        Log.i(TAG, "writing item in global thread "+next.message);
+                        //Log.i(TAG, "writing item in global thread "+next.message);
                         writer.append(next.toJSON().toString(4));
                         writer.append("\n");
                     }
                     //for (String data : pendingOutput) writer.append(data);
                     writer.flush();
                     writer.close();
-                    Log.i(TAG, "finishing write in global thread to "+outfile.getAbsolutePath());
+                    //Log.i(TAG, "finishing write in global thread to "+outfile.getAbsolutePath());
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -181,7 +182,7 @@ public class PermissionService extends IPermissionService.Stub {
         for (String fp : filteredPackages) {
             for (String ep : event.packagenames) {
                 if (ep != null && ep.equals(fp)) {
-                    Log.i(TAG, "Filtering out package "+ep);
+                    //Log.i(TAG, "Filtering out package "+ep);
                     return false;
                 }
             }
@@ -237,7 +238,7 @@ public class PermissionService extends IPermissionService.Stub {
         public void handleMessage(Message msg) {
             try {
                 if (msg.what == MESSAGE_DISPLAY) {
-                    Log.i(TAG, "set message received: " + msg.arg1 + " in PID: "+Process.myPid());
+                    //Log.i(TAG, "set message received: " + msg.arg1 + " in PID: "+Process.myPid());
                     processSecurityEvent((SecurityEvent)msg.obj);
                 } else if (msg.what == MESSAGE_DISMISS) {
                     dismissSecurityEvent((SecurityEvent)msg.obj);
@@ -411,13 +412,21 @@ public class PermissionService extends IPermissionService.Stub {
 
     public Detector[] rules = {
         new PermissionDetector(new Permission[] {
-            new Permission("android.permission.READ_PHONE_STATE", "Phone Identity Accessed", "read your Phone Identity", com.android.internal.R.drawable.sys_access_phoneinfo_normal), //com.android.internal.R.drawable.sys_access_phoneinfo_normal), 
+            new Permission("android.permission.READ_PHONE_STATE", "Phone Identity Accessed", "read your Phone Identity", com.android.internal.R.drawable.sys_access_phoneinfo_normal), 
+            new Permission("android.permission.GET_ACCOUNTS", "Accounts Accessed", "read your Account info", com.android.internal.R.drawable.sys_access_personal_normal), 
         }, SEVERITY_LOW),
         new PermissionDetector(new Permission[] {
             new Permission("android.permission.READ_CONTACTS", "Contacts Accessed", "read your Contacts", com.android.internal.R.drawable.sys_access_contacts_normal),
+            new Permission("com.android.browser.permission.READ_HISTORY_BOOKMARKS", "Browser Accessed", "read your Browser History", com.android.internal.R.drawable.sys_access_personal_normal),
+            new Permission("android.permission.READ_CALENDAR", "Calendar Accessed", "read your Calendar", com.android.internal.R.drawable.sys_access_events_normal),
+            new Permission("android.permission.RECORD_AUDIO", "Mic Recording", "recorded your Phone's Microphone", com.android.internal.R.drawable.sys_access_mic_normal),
+            //new Permission("android.permission.CAMERA", "Camera Recording", "recorded a video", com.android.internal.R.drawable.sys_access_mic_normal),
+            new Permission("android.permission.READ_SMS", "Messages Accessed", "read your Messages", com.android.internal.R.drawable.sys_access_messages_normal),
         }, SEVERITY_MED),
         new PermissionDetector(new Permission[] {
             new Permission("android.permission.WRITE_CONTACTS", "Contacts Written", "wrote to your Contacts", com.android.internal.R.drawable.sys_write_contacts_normal),
+            new Permission("android.permission.WRITE_CALENDAR", "Calendar Written", "wrote to your Calendar", com.android.internal.R.drawable.sys_write_events_normal),
+            new Permission("android.permission.WRITE_SMS", "Messages Written", "wrote to your Messages", com.android.internal.R.drawable.sys_write_messages_normal),
         }, SEVERITY_HIGH),
     };
 

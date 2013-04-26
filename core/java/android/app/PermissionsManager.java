@@ -33,18 +33,18 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.os.IPermissionService;
+import android.media.AudioRecord;
+import android.media.AudioRecord.AudioRecordListener;
+import android.media.MediaRecorder;
+import android.media.MediaRecorder.MediaRecorderListener;
+import android.hardware.Camera;
+import android.hardware.Camera.CameraListener;
 
 public class PermissionsManager {
     
     Context mContext;
     
     private static final Object sSync = new Object[0];
-//    private static WriteThread writeThread;
-//    private static ConcurrentLinkedQueue<PermissionEvent> eventList = new ConcurrentLinkedQueue<PermissionEvent>();
-//    private static ConcurrentHashMap<Integer,String[]> knownUids = new ConcurrentHashMap<Integer,String[]>();
-    
-//    private static ArrayList<String> pendingOutput;
-//    private static String parentFolder;
     private static IPermissionService permService;
     
 //    static long lastwrite = 0L;
@@ -90,6 +90,36 @@ public class PermissionsManager {
             }
         }
     }; 
+    private static AudioRecordListener audioListener = new AudioRecordListener() {
+        public void onInit() {
+            addEvent(null, "android.permission.RECORD_AUDIO", "init", Process.myUid(), true, 0);
+        }
+        public void onStart() {
+            addEvent(null, "android.permission.RECORD_AUDIO", "start", Process.myUid(), true, 0);
+        }
+        public void onStop() {
+            addEvent(null, "android.permission.RECORD_AUDIO", "stop", Process.myUid(), true, 0);
+        }
+    };
+    private static MediaRecorderListener mediaListener = new MediaRecorderListener() {
+        public void onInitAudio() {
+            addEvent(null, "android.permission.RECORD_AUDIO", "init", Process.myUid(), true, 0);
+        }
+        public void onInitVideo() {
+            addEvent(null, "android.permission.CAMERA", "init", Process.myUid(), true, 0);
+        }
+        public void onStart() {
+            addEvent(null, "android.permission.RECORD_AUDIO/VIDEO", "start", Process.myUid(), true, 0);
+        }
+        public void onStop() {
+            addEvent(null, "android.permission.RECORD_AUDIO/VIDEO", "stop", Process.myUid(), true, 0);
+        }
+    };
+    private static CameraListener cameraListener = new CameraListener() {
+        public void onOpen() {
+            addEvent(null, "android.permission.CAMERA", "open", Process.myUid(), true, 0);
+        }
+    };
     
 //    private static Random letsNotClobberTheSystem = new Random();
 //    private static Globals sGlobals;
@@ -98,39 +128,24 @@ public class PermissionsManager {
         synchronized (sSync) {
             AbstractHttpClient.executeListener = httpListener;
             URL.executeListener = urlListener;
+            AudioRecord.listener = audioListener;
+            Camera.listener = cameraListener;
+            MediaRecorder.listener = mediaListener;
                     //permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
             System.out.println("Set up this PID's permission listeners");
         }
     }
     public static void initGlobals(Context context) {
         synchronized (sSync) {
-//            if (sGlobals == null) {
-//                sGlobals = new Globals(looper);
-//            }
-//         
-                try {
-                    /*
-            checkWriteThread();
-            if (parentFolder == null) {
-                try {
-                    parentFolder = context.getFilesDir().toString();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
             try {
-                getPackageNameForUid(Process.myUid(), context);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-                    */
-            AbstractHttpClient.executeListener = httpListener;
-            
-            permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
+                AbstractHttpClient.executeListener = httpListener;
+                
+                permService = IPermissionService.Stub.asInterface(ServiceManager.getService("Permission"));
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+        touch();
     }
 
     private static IPermissionService getPermService() {
@@ -140,51 +155,6 @@ public class PermissionsManager {
         return permService;
     }
 
-    /*
-    private static void checkWriteThread() {
-        if (writeThread == null) {
-            writeThread = new WriteThread();
-            writeThread.start();
-        }
-    }
-    
-    private static class WriteThread extends Thread {
-        boolean longsleep = false;
-        long lastsleep = 0;
-        @Override
-        public void run() {
-            while(true) { //always run. don't think there's any reason to die.
-                longsleep = true;
-                //if (SystemClock.uptimeMillis() - lastwrite > 1000*10) { //if we haven't written in 10 seconds
-                    try {
-                        Log.d("PermissionsManagerThread", "Starting write");
-                        startProcessingEvents();
-
-                        PermissionEvent event = null;
-                        while ((event = eventList.poll()) != null) {
-                            longsleep = false;
-                            processEvent(event);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    } finally {
-                        Log.d("PermissionsManagerThread", "Finishing write");
-                        finishProcessingEvents();
-                        lastwrite = SystemClock.uptimeMillis();
-                    }
-                //} else {
-                //  longsleep = false;
-                //}
-                try {
-                    if (longsleep) Thread.sleep(1000*1000); //a  really long time
-                    else Thread.sleep(500L);
-                } catch (InterruptedException e) {
-                    //do NOT care
-                }
-            }
-        }
-    }
-    */
     
     public static class PermissionEvent {
         public String permission;
@@ -273,92 +243,7 @@ public class PermissionsManager {
         try {
             getPermService().postNewEvent(permission, message, uid, selfToo, resultOfCheck, System.currentTimeMillis(), data);
         } catch (Exception e) { e.printStackTrace(); }
-        /*
-        PermissionEvent event = new PermissionEvent(permission, message, uid, selfToo, resultOfCheck, System.currentTimeMillis(), getPackageNameForUid(uid, context), data);
-        //getPermService().postEvent(event.toJSON().toString());
-        eventList.add(event);
-        checkWriteThread();
-        writeThread.interrupt();
-        */
     }
-    
-    /*
-    private static String[] getPackageNameForUid(int uid, Context context) {
-        if (knownUids.containsKey(uid)) {
-            return knownUids.get(uid);
-        }
-        if (context != null) {
-        String[] packages = context.getPackageManager().getPackagesForUid(uid);
-        if (packages != null && packages.length >= 1) {
-            knownUids.put(uid, packages);
-        }
-        return packages;
-        } else {
-                return new String[] { "unknown" };
-        }
-    }
-    
-    
-    private static void startProcessingEvents() {
-        if (pendingOutput == null) pendingOutput = new ArrayList<String>();
-        if (pendingOutput.size() > 1000) pendingOutput.clear();
-    }
-    
-    private static void processEvent(PermissionEvent event) {
-        // Nooooo idea.
-        //Log.d("PermissionsManager", String.format("Logging: time %d permission:%s uid:%d, selftoo:%b result:%d packagname:%s message:%s", 
-        //      event.time, event.permission, event.uid, event.selfToo, event.resultOfCheck, Arrays.toString(event.packagenames), event.message));
-        try {
-            pendingOutput.add(event.toJSON().toString(4));
-            Log.d("PermissionsManager", "Calling into global service");
-            getPermService().postEvent(event.toJSON().toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
-    private static void finishProcessingEvents() {
-        //String internetStuff = getInternetStuff();
-    if (parentFolder == null || pendingOutput.size() <= 0) {
-            Log.d("PermissionsManager", "WRITEEVENTS Escaping. during write");
-        return;
-    }
-        try {
-            File outdir = new File(parentFolder,"APM");
-            outdir.setReadable(true, false);
-            outdir.mkdirs();
-            File outfile = new File(outdir, android.os.Process.myUid()+".json");
-            outfile.setReadable(true, false);
-            FileWriter writer = new FileWriter(outfile, true);
-            for (String data : pendingOutput) writer.append(data);
-                //if (internetStuff != null) writer.append(internetStuff);
-            writer.flush();
-            writer.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            Log.d("PermissionsManager", "WRITEEVENTS Clearing "+pendingOutput.size()+" entries"); 
-            pendingOutput.clear();
-        }
-    }
-    /* 
-    private static String getInternetStuff() {
-       try {
-           JSONObject obj = new JSONObject();
-           obj.put("time", System.currentTimeMillis());
-           obj.put("aatype", "internet"); 
-           obj.put("package", packageName+"");
-           String[] list = null;//InetAddress.getAccessList();
-           if (list == null || list.length == 0 || list[0] == null) return null;
-           obj.put("access", new JSONArray(Arrays.asList(list)));
-           //InetAddress.clearAccessList();
-           return obj.toString(4);
-       } catch (Exception e) { e.printStackTrace(); }
-       return null;
-
-    }
-    */
-    
 }
 
 

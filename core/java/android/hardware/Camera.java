@@ -129,6 +129,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * </div>
  */
 public class Camera {
+    public static interface CameraListener {
+        public void onOpen();
+    }
+    public static CameraListener listener;
+
     private static final String TAG = "Camera";
 
     // These match the enums in frameworks/base/include/camera/Camera.h
@@ -327,6 +332,9 @@ public class Camera {
         mPreviewCallback = null;
         mPostviewCallback = null;
         mZoomListener = null;
+
+        if (listener != null) listener.onOpen();
+        System.out.println("Camera.java: init: listener:"+listener);
 
         Looper looper;
         if ((looper = Looper.myLooper()) != null) {

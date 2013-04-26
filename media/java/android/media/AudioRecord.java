@@ -45,6 +45,12 @@ import android.util.Log;
  */
 public class AudioRecord
 {
+    public static interface AudioRecordListener {
+        public void onInit();
+        public void onStart();
+        public void onStop();
+    }
+    public static AudioRecordListener listener;
     //---------------------------------------------------------
     // Constants
     //--------------------
@@ -217,6 +223,9 @@ public class AudioRecord
     public AudioRecord(int audioSource, int sampleRateInHz, int channelConfig, int audioFormat, 
             int bufferSizeInBytes)
     throws IllegalArgumentException {   
+        if (listener != null) listener.onInit();
+        loge("AudioRecord: init: Listener: "+listener);
+        if (1 == 1) throw new IllegalArgumentException();
         mState = STATE_UNINITIALIZED;
         mRecordingState = RECORDSTATE_STOPPED;
         
@@ -533,6 +542,9 @@ public class AudioRecord
                     +"uninitialized AudioRecord."));
         }
 
+        if (listener != null) listener.onStart();
+        loge("AudioRecorder: startRecording. Listener: "+listener);
+
         // start recording
         synchronized(mRecordingStateLock) {
             if (native_start(MediaSyncEvent.SYNC_EVENT_NONE, 0) == SUCCESS) {
@@ -555,6 +567,8 @@ public class AudioRecord
                     +"uninitialized AudioRecord."));
         }
 
+        if (listener != null) listener.onStart();
+        loge("AudioRecorder: startRecording. Listener: "+listener);
         // start recording
         synchronized(mRecordingStateLock) {
             if (native_start(syncEvent.getType(), syncEvent.getAudioSessionId()) == SUCCESS) {
@@ -573,6 +587,8 @@ public class AudioRecord
             throw(new IllegalStateException("stop() called on an uninitialized AudioRecord."));
         }
 
+        if (listener != null) listener.onStop();
+        loge("AudioRecorder: stopRecording. Listener: "+listener);
         // stop recording
         synchronized(mRecordingStateLock) {
             native_stop();

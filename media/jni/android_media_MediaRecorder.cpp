@@ -170,6 +170,11 @@ android_media_MediaRecorder_setVideoSource(JNIEnv *env, jobject thiz, jint vs)
         jniThrowException(env, "java/lang/IllegalArgumentException", "Invalid video source");
         return;
     }
+
+    jclass clazz = env->GetObjectClass(thiz);
+    jmethodID message = env->GetMethodID(clazz, "postVideoRecordEvent", "()V");
+    env->CallVoidMethod(thiz, message, true);
+
     sp<MediaRecorder> mr = getMediaRecorder(env, thiz);
     process_media_recorder_call(env, mr->setVideoSource(vs), "java/lang/RuntimeException", "setVideoSource failed.");
 }
@@ -182,6 +187,12 @@ android_media_MediaRecorder_setAudioSource(JNIEnv *env, jobject thiz, jint as)
         jniThrowException(env, "java/lang/IllegalArgumentException", "Invalid audio source");
         return;
     }
+
+    jclass clazz = env->GetObjectClass(thiz);
+    jmethodID message = env->GetMethodID(clazz, "postAudioRecordEvent", "()V");
+    env->CallVoidMethod(thiz, message, true);
+
+
 
     sp<MediaRecorder> mr = getMediaRecorder(env, thiz);
     process_media_recorder_call(env, mr->setAudioSource(as), "java/lang/RuntimeException", "setAudioSource failed.");
@@ -350,6 +361,9 @@ static void
 android_media_MediaRecorder_start(JNIEnv *env, jobject thiz)
 {
     ALOGV("start");
+    jclass clazz = env->GetObjectClass(thiz);
+    jmethodID message = env->GetMethodID(clazz, "postStartRecordEvent", "()V");
+    env->CallVoidMethod(thiz, message, true);
     sp<MediaRecorder> mr = getMediaRecorder(env, thiz);
     process_media_recorder_call(env, mr->start(), "java/lang/RuntimeException", "start failed.");
 }
@@ -358,6 +372,9 @@ static void
 android_media_MediaRecorder_stop(JNIEnv *env, jobject thiz)
 {
     ALOGV("stop");
+    jclass clazz = env->GetObjectClass(thiz);
+    jmethodID message = env->GetMethodID(clazz, "postStopRecordEvent", "()V");
+    env->CallVoidMethod(thiz, message, true);
     sp<MediaRecorder> mr = getMediaRecorder(env, thiz);
     process_media_recorder_call(env, mr->stop(), "java/lang/RuntimeException", "stop failed.");
 }
