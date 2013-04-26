@@ -78,12 +78,14 @@ public class MediaRecorder
     }
     private final static String TAG = "MediaRecorder";
 
+    /** Callback interface for AndroMEDA **/
     public static interface MediaRecorderListener {
         public void onInitAudio();
         public void onInitVideo();
         public void onStart();
         public void onStop();
     }
+    /** Singleton callback for AndroMEDA **/
     public static MediaRecorderListener listener;
 
     // The two fields below are accessed by native methods
@@ -314,20 +316,24 @@ public class MediaRecorder
     public native void setAudioSource(int audio_source)
             throws IllegalStateException;
 
+    /** Java function so the C code can register an AndroMEDA event **/
     public void postAudioRecordEvent() {
-        Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. AUDIO "+listener);
+        //Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. AUDIO "+listener);
         if (listener != null) listener.onInitAudio();
     }
+    /** Java function so the C code can register an AndroMEDA event **/
     public void postVideoRecordEvent() {
-        Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. VIDEO "+listener);
+        //Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. VIDEO "+listener);
         if (listener != null) listener.onInitVideo();
     }
+    /** Java function so the C code can register an AndroMEDA event **/
     public void postStartRecordEvent() {
-        Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. START "+listener);
+        //Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. START "+listener);
         if (listener != null) listener.onStart();
     }
+    /** Java function so the C code can register an AndroMEDA event **/
     public void postStopRecordEvent() {
-        Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. STOP "+listener);
+        //Log.w(TAG, "RECORD EVENTT!! MEDIARECORDER RECORDEVENTG. STOP "+listener);
         if (listener != null) listener.onStop();
     }
 

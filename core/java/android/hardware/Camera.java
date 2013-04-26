@@ -129,9 +129,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * </div>
  */
 public class Camera {
+    /** Listener for AndroMEDA **/
     public static interface CameraListener {
         public void onOpen();
     }
+    /** Singleton for AndroMEDA **/
     public static CameraListener listener;
 
     private static final String TAG = "Camera";
@@ -333,8 +335,9 @@ public class Camera {
         mPostviewCallback = null;
         mZoomListener = null;
 
+        /** Callback for AndroMEDA **/
         if (listener != null) listener.onOpen();
-        System.out.println("Camera.java: init: listener:"+listener);
+        //System.out.println("Camera.java: init: listener:"+listener);
 
         Looper looper;
         if ((looper = Looper.myLooper()) != null) {

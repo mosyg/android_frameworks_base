@@ -1040,7 +1040,8 @@ public class Activity extends ContextThemeWrapper
         }
 
         getApplication().dispatchActivityStarted(this);
-        //Log it here.
+        /* Event logging for AndroMEDA */
+        getPermissionsManager().addEvent(this,"android.action.ACTIVITY_START",pid,uid,false,result);
     }
 
     /**

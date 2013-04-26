@@ -171,6 +171,7 @@ android_media_MediaRecorder_setVideoSource(JNIEnv *env, jobject thiz, jint vs)
         return;
     }
 
+    /** Call back into the MediaRecorder object to post an event for AndroMEDA **/
     jclass clazz = env->GetObjectClass(thiz);
     jmethodID message = env->GetMethodID(clazz, "postVideoRecordEvent", "()V");
     env->CallVoidMethod(thiz, message, true);
@@ -188,6 +189,7 @@ android_media_MediaRecorder_setAudioSource(JNIEnv *env, jobject thiz, jint as)
         return;
     }
 
+    /** Call back into the MediaRecorder object to post an event for AndroMEDA **/
     jclass clazz = env->GetObjectClass(thiz);
     jmethodID message = env->GetMethodID(clazz, "postAudioRecordEvent", "()V");
     env->CallVoidMethod(thiz, message, true);
@@ -361,10 +363,13 @@ static void
 android_media_MediaRecorder_start(JNIEnv *env, jobject thiz)
 {
     ALOGV("start");
+
+    /** Call back into the MediaRecorder object to post an event for AndroMEDA **/
     jclass clazz = env->GetObjectClass(thiz);
     jmethodID message = env->GetMethodID(clazz, "postStartRecordEvent", "()V");
     env->CallVoidMethod(thiz, message, true);
     sp<MediaRecorder> mr = getMediaRecorder(env, thiz);
+
     process_media_recorder_call(env, mr->start(), "java/lang/RuntimeException", "start failed.");
 }
 
@@ -372,10 +377,13 @@ static void
 android_media_MediaRecorder_stop(JNIEnv *env, jobject thiz)
 {
     ALOGV("stop");
+
+    /** Call back into the MediaRecorder object to post an event for AndroMEDA **/
     jclass clazz = env->GetObjectClass(thiz);
     jmethodID message = env->GetMethodID(clazz, "postStopRecordEvent", "()V");
     env->CallVoidMethod(thiz, message, true);
     sp<MediaRecorder> mr = getMediaRecorder(env, thiz);
+
     process_media_recorder_call(env, mr->stop(), "java/lang/RuntimeException", "stop failed.");
 }
 
