@@ -39,6 +39,7 @@ import android.media.AudioRecord.AudioRecordListener;
 import android.media.MediaRecorder;
 import android.media.MediaRecorder.MediaRecorderListener;
 import android.hardware.Camera;
+import android.app.Activity;
 import android.hardware.Camera.CameraListener;
 
 public class PermissionsManager {
@@ -254,13 +255,19 @@ public class PermissionsManager {
 
 
     private static void sendOnInit() {
-        addEvent(null, "android.activity.ACTION", "init", Process.myUid(), true, 0);
+        addEvent(null, "android.activity.ACTION.INIT", "init", Process.myUid(), true, 0);
     }
     private void sendOnForeground() {
-        addEvent(null, "android.activity.ACTION", "foreground", Process.myUid(), true, 0);
+        addEvent(null, "android.activity.ACTION.FOREGROUND", "foreground", Process.myUid(), true, 0);
     }
     private void sendOnBackground() {
-        addEvent(null, "android.activity.ACTION", "background", Process.myUid(), true, 0);
+        addEvent(null, "android.activity.ACTION.BACKGROUND", "background", Process.myUid(), true, 0);
+    }
+    public void onActivityStart(Activity activity) {
+        addEvent(null, "android.activity.ACTION.ACTIVITY_START", ""+activity.getTitle(), Process.myUid(), true, 0);
+    }
+    public void onActivityStop(Activity activity) {
+        addEvent(null, "android.activity.ACTION.ACTIVITY_STOP", ""+activity.getTitle(), Process.myUid(), true, 0);
     }
 
     public List<String> getRawEvents(String packagename) {

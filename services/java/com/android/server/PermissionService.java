@@ -143,7 +143,7 @@ public class PermissionService extends IPermissionService.Stub {
                 try {
                     //Log.i(TAG, "Starting write in global thread");
                     HashMap<String,ArrayList<PermissionEvent>> eventsByPackage = new HashMap<String,ArrayList<PermissionEvent>>();
-                    File outdir = new File(Environment.getDataDirectory(), "APM");
+                    File outdir = new File(Environment.getDataDirectory(), "AndroMEDA");
                     outdir.setReadable(true, false);
                     outdir.mkdirs();
                     File outfile = new File(outdir,"all.json");
@@ -230,7 +230,7 @@ public class PermissionService extends IPermissionService.Stub {
     public List<String> getEvents(String packagename) {
         mContext.checkCallingPermission("android.permission.GET_PERMISSION_HISTORY");
         try {
-            File outdir = new File(Environment.getDataDirectory(), "APM");
+            File outdir = new File(Environment.getDataDirectory(), "AndroMEDA");
             File outfile = new File(outdir,packagename+".json");
             BufferedReader reader = new BufferedReader(new FileReader(outfile));
             List<String> lines = new ArrayList<String>();

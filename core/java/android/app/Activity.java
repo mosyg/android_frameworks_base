@@ -1041,7 +1041,7 @@ public class Activity extends ContextThemeWrapper
 
         getApplication().dispatchActivityStarted(this);
         /* Event logging for AndroMEDA */
-        getPermissionsManager().addEvent(this,"android.action.ACTIVITY_START",pid,uid,false,result);
+        getPermissionsManager().onActivityStart();
     }
 
     /**
@@ -1370,6 +1370,9 @@ public class Activity extends ContextThemeWrapper
         if (mActionBar != null) mActionBar.setShowHideAnimationEnabled(false);
         getApplication().dispatchActivityStopped(this);
         mCalled = true;
+
+        /* Event logging for AndroMEDA */
+        getPermissionsManager().onActivityStop();
     }
 
     /**
