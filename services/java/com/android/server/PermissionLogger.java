@@ -3,14 +3,11 @@ package com.android.server;
 
 import android.app.PermissionsManager.PermissionEvent;
 
-package edu.uiuc.mosyg.logcollectorviewer;
-
-//import android.app.PermissionsManager.PermissionEvent;
-
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -24,11 +21,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Environment;
 import android.os.Process;
@@ -37,8 +34,8 @@ import android.util.Log;
 public class PermissionLogger {
     public final static String TAG = "AndroMEDA";
     
-    private final static String SHARED_PREFS = "AndroMEDA_Logging_Prefs";
-    private final static String UPLOADED_RECORD = "AndroMEDA_Logging_Records";
+    private final static String SHARED_PREFS = "prefs.prop";
+    private final static String UPLOADED_RECORD = "upload_log.prop";
     private final static String KEY_UUID = "uuid";
     private final static String KEY_UPLOAD_URL = "uploadurl";
     private final static String KEY_BACKLOG_TIME = "backlogtime";
@@ -46,10 +43,11 @@ public class PermissionLogger {
     
     private Object lock = new Object();
     private Context mContext;
-    private File outdir;
-    private SharedPreferences prefs;
+    private File maindir;
+    private File logdir;
+    private Properties prefs = new Properties();
     //Shared preferences to store upload information
-    private SharedPreferences uploaded;
+    private Properties uploaded = new Properties();
         
     private String uuid = "";
     private long lastUpload = 0;
@@ -58,11 +56,11 @@ public class PermissionLogger {
     /**
      * Number of days to log until the old ones get deleted
      */
-    int numTimeUnitsBacklog = 3;
+    int numTimeUnitsBacklog = 24;//3;
     
-    public long millisPerTimeUnit = 1000 * 60 * 60 * 24; //1 day units.
+    public long millisPerTimeUnit = 1000 * 60 * 60;// * 24; // main time unit block.
     
-    public long millisUntilUpload = millisPerTimeUnit * 1; //1 day
+    public long millisUntilUpload = millisPerTimeUnit * 1;
     
     boolean shouldUpload = true; //change this to false for anything but research mode
     String uploadURL = "http://srgnhl.cs.illinois.edu/andromeda/upload_logs.php";
@@ -87,10 +85,13 @@ public class PermissionLogger {
      * Recreate the output directory. it may be deleted whenever.
      */
     private void createOutDirectory() {
-        outdir = new File(Environment.getDataDirectory(), "AndroMEDA");
+        maindir = new File(Environment.getDataDirectory(), "AndroMEDA");
+        maindir.mkdirs();
+        maindir.setReadable(true, false);
+        logdir = new File(maindir, "logs");
         //outdir = new File(Environment.getExternalStorageDirectory(), "AndroMEDA");
-        outdir.setReadable(true, false);
-        outdir.mkdirs();
+        logdir.setReadable(true, false);
+        logdir.mkdirs();
     }
     
     
@@ -136,7 +137,7 @@ public class PermissionLogger {
         synchronized (lock) {   
             // Log each bucket individually
             for (Map.Entry<String,ArrayList<PermissionEvent>> pair : eventsByPackage.entrySet()) {
-                File outfile = new File(outdir,getFilename(pair.getKey()));
+                File outfile = new File(logdir,getFilename(pair.getKey()));
                 outfile.setReadable(true, false);
                 FileWriter writer = new FileWriter(outfile, true);
                 for ( PermissionEvent event : pair.getValue()) {
@@ -164,28 +165,33 @@ public class PermissionLogger {
     }
     
     
-    public void uploadIfAfter(long time) {
+    public void uploadIfAfter(long time, boolean all) {
         if (System.currentTimeMillis() - lastUpload > time) {
-            upload();
+            upload(all);
         }
     }
     
-    public void upload() {
-        for (File child : outdir.listFiles()) {
-            if (hasUploaded(child) == false && System.currentTimeMillis() - child.lastModified() > millisUntilUpload ) {
+    public void upload(boolean all) {
+        for (File child : logdir.listFiles()) {
+            if (all || (hasUploaded(child) == false && System.currentTimeMillis() - child.lastModified() > millisUntilUpload) ) {
                 try {
-                    doUpload(child);
+                    if (all) {
+                        doUpload(child, false);
+                    } else {
+                        doUpload(child, true);
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                     //try again later.
                 }
             }
+            commitUploaded();
         }
         lastUpload = System.currentTimeMillis();
     }
     
     public void cleanupIfAfter(long time) {
-        if (System.currentTimeMillis() - lastUpload > time) {
+        if (System.currentTimeMillis() - lastCleanup > time) {
             cleanup();
         }
     }
@@ -195,7 +201,7 @@ public class PermissionLogger {
         ArrayList<File> toDelete = new ArrayList<File>();
         synchronized(lock) {
             createOutDirectory();
-            for (File child : outdir.listFiles()) {
+            for (File child : logdir.listFiles()) {
                 if ( (now - getTimeBlock(child.lastModified())) < (numTimeUnitsBacklog)) {
                     toDelete.add(child);
                 }
@@ -204,6 +210,7 @@ public class PermissionLogger {
                 child.delete();
                 removeUploaded(child);
             }
+            commitUploaded();
         }
         lastCleanup = System.currentTimeMillis();
     }
@@ -217,7 +224,7 @@ public class PermissionLogger {
         synchronized (lock) {       
             for (int i=numTimeUnitsBacklog-1; i>=0; i--) {
                 try {
-                    File outfile = new File(outdir,getFilename(packagename, i));
+                    File outfile = new File(logdir,getFilename(packagename, i));
                     BufferedReader reader = new BufferedReader(new FileReader(outfile));
                     for (String line=reader.readLine(); line != null; line=reader.readLine()) {
                         lines.add(line);
@@ -256,25 +263,50 @@ public class PermissionLogger {
     /**** Preferences Stuff ****/
     
     void initPreferences() {
-        prefs = mContext.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
-        uploaded = mContext.getSharedPreferences(UPLOADED_RECORD, Context.MODE_PRIVATE);
+        loadPrefs(prefs, new File(maindir, SHARED_PREFS));
+        
+        loadPrefs(uploaded,new File(maindir, UPLOADED_RECORD));     
+        
         //make a UUID if we don't have one yet
-        if (prefs.getString(KEY_UUID, "").equals("")){
-            putString(prefs, KEY_UUID, UUID.randomUUID().toString());
+        if (prefs.getProperty(KEY_UUID, "").equals("")){
+            putString(KEY_UUID, UUID.randomUUID().toString());
         }
         readInPreferences();
     }
     
-    void putString(SharedPreferences prefs, String key, String value) {
-        prefs.edit().putString(key, value).apply();
+    void loadPrefs(Properties prefs, File file) {
+        try {
+            FileInputStream fis = new FileInputStream(file);
+            prefs.load(fis);
+            fis.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    void putString(String key, String value) {
+        try {
+            prefs.setProperty(key, value);
+            FileOutputStream fos = new FileOutputStream(new File(maindir, SHARED_PREFS));
+            prefs.store(fos, "preferences for AndroMEDA");
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
     
     
+    
+    
     void readInPreferences() {
-        uuid = prefs.getString(KEY_UUID, uuid);
-        uploadURL = prefs.getString(KEY_UPLOAD_URL, uploadURL);
-        numTimeUnitsBacklog = prefs.getInt(KEY_BACKLOG_TIME, numTimeUnitsBacklog);
-        shouldUpload = prefs.getBoolean(KEY_SHOULD_UPLOAD, shouldUpload);
+        try {
+            uuid = prefs.getProperty(KEY_UUID, uuid);
+            uploadURL = prefs.getProperty(KEY_UPLOAD_URL, uploadURL);
+            numTimeUnitsBacklog = Integer.parseInt(prefs.getProperty(KEY_BACKLOG_TIME, ""+numTimeUnitsBacklog));
+            shouldUpload = Boolean.parseBoolean(prefs.getProperty(KEY_SHOULD_UPLOAD, ""+shouldUpload));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     
     
@@ -291,21 +323,31 @@ public class PermissionLogger {
     
     
     boolean hasUploaded(File file) {
-        return uploaded.getBoolean(file.getName(), false);
+        return uploaded.getProperty(file.getName()) != null;
     }
     
     void setHasUploaded(File file) {
-        uploaded.edit().putBoolean(file.getName(), true).apply();
+        uploaded.setProperty(file.getName(), "uploaded");
     }
     
     void removeUploaded(File file) {
-        uploaded.edit().remove(file.getName()).apply();
+        uploaded.remove(file.getName());
+    }
+    void commitUploaded() {
+        try {
+            FileOutputStream fos = new FileOutputStream(new File(maindir, UPLOADED_RECORD));
+            uploaded.store(fos, "upload logs for AndroMEDA");
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    void doUpload(File file) throws IOException {
+
+    void doUpload(File file, boolean logUploaded) throws IOException {
         HttpFileUploader uploader = new HttpFileUploader(uploadURL, "", makeFilename(file));
         int response = uploader.doUpload(new FileInputStream(file));
-        if (response >= 200 && response <= 300) { //make sure the server accepted the file
+        if (logUploaded && (response >= 200 && response <= 300)) { //make sure the server accepted the file
             setHasUploaded(file);
         }
     }
