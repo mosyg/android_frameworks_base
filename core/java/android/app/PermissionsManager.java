@@ -296,58 +296,57 @@ public class PermissionsManager {
 
 
     /** admin actions **/
-    void uploadAllLogs() throws RemoteException {
+    public void uploadAllLogs() throws RemoteException {
         getPermService().uploadAllLogs();
     }
-    void clearAllLogs() throws RemoteException {
+    public void clearAllLogs() throws RemoteException {
         getPermService().clearAllLogs();
     }
-
-    void setUploadUrl(String url) throws RemoteException {
+    public void setUploadUrl(String url) throws RemoteException {
         getPermService().setUploadUrl(url);
     }
-    String getUploadUrl() throws RemoteException {
+    public String getUploadUrl() throws RemoteException {
         return getPermService().getUploadUrl();
     }
 
-    void setTimeUnits(long time) throws RemoteException {
+    public void setTimeUnits(long time) throws RemoteException {
         getPermService().setTimeUnits(time);
     }
-    long getTimeUnits() throws RemoteException {
+    public long getTimeUnits() throws RemoteException {
         return getPermService().getTimeUnits();
     }
     
-    void setUploadTime(long time) throws RemoteException {
+    public void setUploadTime(long time) throws RemoteException {
         getPermService().setUploadTime(time);
     }
-    long getUploadTime() throws RemoteException {
+    public long getUploadTime() throws RemoteException {
         return getPermService().getUploadTime();
     }
     
-    void setBacklogTime(int backlog) throws RemoteException {
+    public void setBacklogTime(int backlog) throws RemoteException {
         getPermService().setBacklogTime(backlog);
     }
-    long getBacklogTime() throws RemoteException {
+    public long getBacklogTime() throws RemoteException {
         return getPermService().getBacklogTime();
     }
     
-    void setEnableUpload(boolean enable) throws RemoteException {
+    public void setEnableUpload(boolean enable) throws RemoteException {
         getPermService().setEnableUpload(enable);
     }
-    boolean getEnableUpload() throws RemoteException {
+    public boolean getEnableUpload() throws RemoteException {
         return getPermService().getEnableUpload();
     }
 
-    List<String> getIgnoredPackages() throws RemoteException {
+    public List<String> getIgnoredPackages() throws RemoteException {
         return getPermService().getIgnoredPackages();
     }
-    void addToIgnoreList(String packagename) throws RemoteException {
+    public void addToIgnoreList(String packagename) throws RemoteException {
         getPermService().addToIgnoreList(packagename);
     }
-    void removeFromIgnoreList(String packagename) throws RemoteException {
+    public void removeFromIgnoreList(String packagename) throws RemoteException {
         getPermService().removeFromIgnoreList(packagename);
     }
-    //public JSONArray get
+
     
 }
 
