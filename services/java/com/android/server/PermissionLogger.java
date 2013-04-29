@@ -37,9 +37,12 @@ public class PermissionLogger {
     private final static String SHARED_PREFS = "prefs.prop";
     private final static String UPLOADED_RECORD = "upload_log.prop";
     private final static String KEY_UUID = "uuid";
+    private final static String KEY_IGNORED_PACKAGES = "ignored";
     private final static String KEY_UPLOAD_URL = "uploadurl";
     private final static String KEY_BACKLOG_TIME = "backlogtime";
     private final static String KEY_SHOULD_UPLOAD = "shouldupload";
+    private final static String KEY_TIME_UNIT = "timeunit";
+    private final static String KEY_UPLOAD_TIME = "uploadtime";
     
     private Object lock = new Object();
     private Context mContext;
@@ -65,14 +68,15 @@ public class PermissionLogger {
     boolean shouldUpload = true; //change this to false for anything but research mode
     String uploadURL = "http://srgnhl.cs.illinois.edu/andromeda/upload_logs.php";
     
-    HashSet<String> ignoredPackages = new HashSet<String>(Arrays.asList(new String[] {
+    List<String> defaultIgnoredPackages = Arrays.asList(new String[] {
              "com.android.systemui",
              "com.google.android.location",
              "com.google.android.syncadapters.contacts",
              "com.android.providers.downloads",
              "com.android.vending",
              "com.google.android.apps.uploader"
-             }));
+    });
+    HashSet<String> ignoredPackages = new HashSet<String>(defaultIgnoredPackages);
     
     
     public PermissionLogger(Context context) {
@@ -190,19 +194,19 @@ public class PermissionLogger {
         lastUpload = System.currentTimeMillis();
     }
     
-    public void cleanupIfAfter(long time) {
+    public void cleanupIfAfter(long time, boolean all) {
         if (System.currentTimeMillis() - lastCleanup > time) {
-            cleanup();
+            cleanup(all);
         }
     }
     
-    public void cleanup() {
+    public void cleanup(boolean all) {
         int now = getTimeBlock();
         ArrayList<File> toDelete = new ArrayList<File>();
         synchronized(lock) {
             createOutDirectory();
             for (File child : logdir.listFiles()) {
-                if ( (now - getTimeBlock(child.lastModified())) < (numTimeUnitsBacklog)) {
+                if (all || (now - getTimeBlock(child.lastModified())) < (numTimeUnitsBacklog)) {
                     toDelete.add(child);
                 }
             }
@@ -304,10 +308,85 @@ public class PermissionLogger {
             uploadURL = prefs.getProperty(KEY_UPLOAD_URL, uploadURL);
             numTimeUnitsBacklog = Integer.parseInt(prefs.getProperty(KEY_BACKLOG_TIME, ""+numTimeUnitsBacklog));
             shouldUpload = Boolean.parseBoolean(prefs.getProperty(KEY_SHOULD_UPLOAD, ""+shouldUpload));
+            millisPerTimeUnit = Long.parseLong(prefs.getProperty(KEY_TIME_UNIT, ""+millisPerTimeUnit));
+            millisUntilUpload = Long.parseLong(prefs.getProperty(KEY_UPLOAD_TIME, ""+millisUntilUpload));
+            ignoredPackages = makeIgnoreList();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+    
+    HashSet<String> makeIgnoreList() {
+        String allignored = prefs.getProperty(KEY_IGNORED_PACKAGES, "");
+        List<String> ignoredlist = new ArrayList<String>();
+        if ("".equals(allignored)) {
+            ignoredlist = defaultIgnoredPackages;
+        } else {
+            allignored.split(",");
+        }
+        return new HashSet<String>(ignoredlist);
+    }
+
+    String getUploadUrl() {
+        return uploadURL;
+    }
+    void setUploadUrl(String url) {
+        putString(KEY_UPLOAD_URL, url);
+        readInPreferences();
+    }
+    void setTimeUnits(long time) {
+        putString(KEY_TIME_UNIT, ""+time);
+        readInPreferences();
+    }
+    long getTimeUnits() {
+        return millisPerTimeUnit;
+    }
+    void setUploadTime(long time) {
+        putString(KEY_UPLOAD_TIME, ""+time);
+        readInPreferences();
+    }
+    long getUploadTime() {
+        return millisUntilUpload;
+    }
+    void setBacklogTime(int backlog) {
+        putString(KEY_BACKLOG_TIME, ""+backlog);
+        readInPreferences();
+    }
+    long getBacklogTime() {
+        return numTimeUnitsBacklog;
+    }
+    void setEnableUpload(boolean enable) {
+        putString(KEY_SHOULD_UPLOAD, ""+enable);
+        readInPreferences();
+    }
+    boolean getEnableUpload() {
+        return shouldUpload;
+    }
+    
+    void saveIgnoreList() {
+        StringBuilder b = new StringBuilder();
+        boolean notfirst = false;
+        for (String packagename : ignoredPackages) {
+            if (notfirst) b.append(",");
+            b.append(packagename);
+            notfirst = true;
+        }
+        putString(KEY_IGNORED_PACKAGES, b.toString());
+    }
+    List<String> getIgnoredPackages() {
+        return Arrays.asList(ignoredPackages.toArray(new String[] {}));
+    }
+    
+    void addToIgnoreList(String packagename) {
+        ignoredPackages.add(packagename);
+        saveIgnoreList();
+    }
+    
+    void removeFromIgnoreList(String packagename) {
+        ignoredPackages.remove(packagename);
+        saveIgnoreList();
+    }
+    
     
     
     

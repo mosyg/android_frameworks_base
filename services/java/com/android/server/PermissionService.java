@@ -136,8 +136,8 @@ public class PermissionService extends IPermissionService.Stub {
             while (true) {
                 try {
                     logger.log(eventList);
-                    logger.uploadIfAfter(logger.millisUntilUpload/12); 
-                    logger.cleanupIfAfter(logger.millisPerTimeUnit/2); 
+                    logger.uploadIfAfter(logger.millisUntilUpload/12, false); 
+                    logger.cleanupIfAfter(logger.millisPerTimeUnit/2, false); 
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -174,6 +174,82 @@ public class PermissionService extends IPermissionService.Stub {
             return new ArrayList<String>();
         }
     }
+
+
+    /**** ADMIN ACTIONS ****/
+    boolean hasAdminPermission() {
+        return mContext.checkCallingPermission("android.permission.ADMIN_PERMISSION_HISTORY") == PackageManager.PERMISSION_DENIED;
+    }
+
+    public void uploadAllLogs() {
+        if (hasAdminPermission()) return;
+        logger.uploadIfAfter(-1, true);
+    }
+    public void clearAllLogs() {
+        if (hasAdminPermission()) return;
+        logger.cleanupIfAfter(-1, true);
+    }
+
+    public void setUploadUrl(String url) {
+        if (hasAdminPermission()) return;
+        logger.setUploadUrl(url);
+    }
+    public String getUploadUrl() {
+        if (hasAdminPermission()) return "";
+        return logger.getUploadUrl();
+    }
+
+    public void setTimeUnits(long time) {
+        if (hasAdminPermission()) return;
+        logger.setTimeUnits(time);
+    }
+    public long getTimeUnits() {
+        if (hasAdminPermission()) return 0;
+        return logger.getTimeUnits();
+    }
+    
+    public void setUploadTime(long time) {
+        if (hasAdminPermission()) return;
+        logger.setUploadTime(time);
+    }
+    public long getUploadTime() {
+        if (hasAdminPermission()) return 0;
+        return logger.getUploadTime();
+    }
+    
+    public void setBacklogTime(int backlog) {
+        if (hasAdminPermission()) return;
+        logger.setBacklogTime(backlog);
+    }
+    public long getBacklogTime() {
+        if (hasAdminPermission()) return 0;
+        return logger.getBacklogTime();
+    }
+    
+    public void setEnableUpload(boolean enable) {
+        if (hasAdminPermission()) return;
+        logger.setEnableUpload(enable);
+    }
+    public  boolean getEnableUpload() {
+        if (hasAdminPermission()) return false;
+        return logger.getEnableUpload();
+    }
+
+    public List<String> getIgnoredPackages() {
+        if (hasAdminPermission()) return null;
+        return logger.getIgnoredPackages();
+    }
+    public void addToIgnoreList(String packagename) {
+        if (hasAdminPermission()) return;
+        logger.addToIgnoreList(packagename);
+    }
+    public void removeFromIgnoreList(String packagename) {
+        if (hasAdminPermission()) return;
+        logger.removeFromIgnoreList(packagename);
+    }
+
+    
+    
     
     
 

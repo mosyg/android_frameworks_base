@@ -30,6 +30,7 @@ import android.os.Environment;
 import android.os.Process;
 import android.os.SystemClock;
 import android.os.ServiceManager;
+import android.os.RemoteException;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -294,6 +295,58 @@ public class PermissionsManager {
     }
 
 
+    /** admin actions **/
+    void uploadAllLogs() throws RemoteException {
+        getPermService().uploadAllLogs();
+    }
+    void clearAllLogs() throws RemoteException {
+        getPermService().clearAllLogs();
+    }
+
+    void setUploadUrl(String url) throws RemoteException {
+        getPermService().setUploadUrl(url);
+    }
+    String getUploadUrl() throws RemoteException {
+        return getPermService().getUploadUrl();
+    }
+
+    void setTimeUnits(long time) throws RemoteException {
+        getPermService().setTimeUnits(time);
+    }
+    long getTimeUnits() throws RemoteException {
+        return getPermService().getTimeUnits();
+    }
+    
+    void setUploadTime(long time) throws RemoteException {
+        getPermService().setUploadTime(time);
+    }
+    long getUploadTime() throws RemoteException {
+        return getPermService().getUploadTime();
+    }
+    
+    void setBacklogTime(int backlog) throws RemoteException {
+        getPermService().setBacklogTime(backlog);
+    }
+    long getBacklogTime() throws RemoteException {
+        return getPermService().getBacklogTime();
+    }
+    
+    void setEnableUpload(boolean enable) throws RemoteException {
+        getPermService().setEnableUpload(enable);
+    }
+    boolean getEnableUpload() throws RemoteException {
+        return getPermService().getEnableUpload();
+    }
+
+    List<String> getIgnoredPackages() throws RemoteException {
+        return getPermService().getIgnoredPackages();
+    }
+    void addToIgnoreList(String packagename) throws RemoteException {
+        getPermService().addToIgnoreList(packagename);
+    }
+    void removeFromIgnoreList(String packagename) throws RemoteException {
+        getPermService().removeFromIgnoreList(packagename);
+    }
     //public JSONArray get
     
 }
