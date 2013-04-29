@@ -55,7 +55,9 @@ public class PermissionLogger {
     /**
      * Number of days to log until the old ones get deleted
      */
-    int numDaysBacklog = 7;
+    int numDaysBacklog = 3;
+    
+    long millisUntilUpload = 1000 * 60 * 60 * 24; //1 day
     
     boolean shouldUpload = true; //change this to false for anything but research mode
     String uploadURL = "http://srgnhl.cs.illinois.edu/andromeda/upload_logs.php";
@@ -81,6 +83,7 @@ public class PermissionLogger {
      */
     private void createOutDirectory() {
         outdir = new File(Environment.getDataDirectory(), "AndroMEDA");
+        //outdir = new File(Environment.getExternalStorageDirectory(), "AndroMEDA");
         outdir.setReadable(true, false);
         outdir.mkdirs();
     }
@@ -164,7 +167,7 @@ public class PermissionLogger {
     
     public void upload() {
         for (File child : outdir.listFiles()) {
-            if (hasUploaded(child) == false) {
+            if (hasUploaded(child) == false && System.currentTimeMillis() - child.lastModified() > millisUntilUpload ) {
                 try {
                     doUpload(child);
                 } catch (IOException e) {
@@ -341,54 +344,36 @@ public class PermissionLogger {
 
         int upload() throws IOException {
             String exsistingFileName = fileName;
-
             String lineEnd = "\r\n";
             String twoHyphens = "--";
             String boundary = "*****";
- 
             // ------------------ CLIENT REQUEST
-
-            Log.e(TAG, "Starting to bad things");
+            Log.d(TAG, "Starting to upload "+fileName+" to "+connectURL.toString());
             // Open a HTTP connection to the URL
-
             HttpURLConnection conn = (HttpURLConnection) connectURL.openConnection();
-
             // Allow Inputs
             conn.setDoInput(true);
-
             // Allow Outputs
             conn.setDoOutput(true);
-
             // Don't use a cached copy.
             conn.setUseCaches(false);
-
             // Use a post method.
             conn.setRequestMethod("POST");
-
             conn.setRequestProperty("Connection", "Keep-Alive");
-
-            conn.setRequestProperty("Content-Type",
-                    "multipart/form-data;boundary=" + boundary);
-
+            conn.setRequestProperty("Content-Type","multipart/form-data;boundary=" + boundary);
             DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
-
             dos.writeBytes(twoHyphens + boundary + lineEnd);
             dos.writeBytes("Content-Disposition: form-data; name=\"uploadedfile\";filename=\"" + exsistingFileName + "\"" + lineEnd);
             dos.writeBytes(lineEnd);
 
-            Log.e(TAG, "Headers are written");
-
             // create a buffer of maximum size
-
             int bytesAvailable = fileInputStream.available();
             int maxBufferSize = 1024;
             int bufferSize = Math.min(bytesAvailable, maxBufferSize);
             byte[] buffer = new byte[bufferSize];
 
             // read file and write it into form...
-
             int bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-
             while (bytesRead > 0) {
                 dos.write(buffer, 0, bufferSize);
                 bytesAvailable = fileInputStream.available();
@@ -397,31 +382,26 @@ public class PermissionLogger {
             }
 
             // send multipart form data necesssary after file data...
-
             dos.writeBytes(lineEnd);
             dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
-
             // close streams
             //Log.e(TAG, "File is written");
             fileInputStream.close();
             dos.flush();
-
+            
             InputStream is = conn.getInputStream();
             // retrieve the response from server
             int ch;
-
             StringBuffer b = new StringBuffer();
             while ((ch = is.read()) != -1) {
                 b.append((char) ch);
             }
             String s = b.toString();
-            Log.i(TAG, "Uploaded. Response: "+s);
+            Log.d(TAG, "Upload complete. Response: "+s);
             dos.close();
             
             return conn.getResponseCode();
-
         }
-
     }
 
 }

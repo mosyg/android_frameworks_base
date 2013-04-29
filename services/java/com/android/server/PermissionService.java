@@ -49,7 +49,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 
 public class PermissionService extends IPermissionService.Stub {
-    private static final String TAG = "PermissionService";
+    private static final String TAG = "AndroMEDA";
     private PermissionWorkerThread mWorker;
     private PermissionWorkerHandler mHandler;
     private WriteThread mWriter;
@@ -169,7 +169,7 @@ public class PermissionService extends IPermissionService.Stub {
 
     public List<String> getEvents(String packagename) {
         try {
-            return logger.getEvents(packagename);
+            return logger.getEvents(packagename, eventList);
         } catch (Exception e) {
             return new ArrayList<String>();
         }
