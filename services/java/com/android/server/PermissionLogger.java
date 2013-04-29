@@ -1,6 +1,8 @@
 /*PermissionLogger.java */
 package com.android.server;
 
+import android.app.PermissionsManager.PermissionEvent;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -47,6 +49,8 @@ public class PermissionLogger {
     private SharedPreferences uploaded;
         
     private String uuid = "";
+    private long lastUpload = 0;
+    private long lastCleanup = 0;
 
     /**
      * Number of days to log until the old ones get deleted
@@ -138,7 +142,7 @@ public class PermissionLogger {
         }
     }
 
-    private boolean shouldLogApp(PermissionEvent event) {
+    public boolean shouldLogApp(PermissionEvent event) {
         if ((Process.FIRST_APPLICATION_UID <= event.uid && event.uid <= Process.LAST_APPLICATION_UID) == false)
             return false;
         if (event.packagenames == null)
@@ -153,6 +157,12 @@ public class PermissionLogger {
     }
     
     
+    public void uploadIfAfter(long time) {
+        if (System.currentTimeMillis() - lastUpload > time) {
+            upload();
+        }
+    }
+    
     public void upload() {
         for (File child : outdir.listFiles()) {
             if (hasUploaded(child) == false) {
@@ -164,7 +174,13 @@ public class PermissionLogger {
                 }
             }
         }
-        
+        lastUpload = System.currentTimeMillis();
+    }
+    
+    public void cleanupIfAfter(long time) {
+        if (System.currentTimeMillis() - lastUpload > time) {
+            cleanup();
+        }
     }
     
     public void cleanup() {
@@ -182,6 +198,7 @@ public class PermissionLogger {
                 removeUploaded(child);
             }
         }
+        lastCleanup = System.currentTimeMillis();
     }
     
     

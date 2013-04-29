@@ -136,12 +136,8 @@ public class PermissionService extends IPermissionService.Stub {
             while (true) {
                 try {
                     logger.log(eventList);
-                    if (count % ((60 * 60 * 12) / 4) == 0) {
-                        logger.cleanup();
-                    }
-                    if (count % ((60 * 60) / 4) == 0) {
-                        logger.upload();
-                    }
+                    logger.uploadIfAfter(1000 * 60 * 60); //upload every hour
+                    logger.cleanupIfAfter(1000 * 60 * 60 * 12); //cleanup every 12 hours
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
