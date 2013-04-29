@@ -3,6 +3,10 @@ package com.android.server;
 
 import android.app.PermissionsManager.PermissionEvent;
 
+package edu.uiuc.mosyg.logcollectorviewer;
+
+//import android.app.PermissionsManager.PermissionEvent;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -25,7 +29,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.Editor;
 import android.content.pm.PackageManager;
 import android.os.Environment;
 import android.os.Process;
@@ -38,7 +41,7 @@ public class PermissionLogger {
     private final static String UPLOADED_RECORD = "AndroMEDA_Logging_Records";
     private final static String KEY_UUID = "uuid";
     private final static String KEY_UPLOAD_URL = "uploadurl";
-    private final static String KEY_BACKLOG_DAYS = "backlogdays";
+    private final static String KEY_BACKLOG_TIME = "backlogtime";
     private final static String KEY_SHOULD_UPLOAD = "shouldupload";
     
     private Object lock = new Object();
@@ -55,9 +58,11 @@ public class PermissionLogger {
     /**
      * Number of days to log until the old ones get deleted
      */
-    int numDaysBacklog = 3;
+    int numTimeUnitsBacklog = 3;
     
-    long millisUntilUpload = 1000 * 60 * 60 * 24; //1 day
+    public long millisPerTimeUnit = 1000 * 60 * 60 * 24; //1 day units.
+    
+    public long millisUntilUpload = millisPerTimeUnit * 1; //1 day
     
     boolean shouldUpload = true; //change this to false for anything but research mode
     String uploadURL = "http://srgnhl.cs.illinois.edu/andromeda/upload_logs.php";
@@ -89,15 +94,15 @@ public class PermissionLogger {
     }
     
     
-    private int getDay() {
+    private int getTimeBlock() {
         Calendar c = Calendar.getInstance(); 
         //return c.get(Calendar.DAY_OF_YEAR);
         //that loops after 365, which doesn't do us a lot of good. let's do it since the epoch.
         long millis = c.getTimeInMillis();
-        return getDay(millis);
+        return getTimeBlock(millis);
     }
-    private int getDay(long millis) {
-        long days = millis / (1000 * 60 * 60 * 24);
+    private int getTimeBlock(long millis) {
+        long days = millis / (millisPerTimeUnit);
         return (int)days;
     }
 
@@ -106,7 +111,7 @@ public class PermissionLogger {
         return getFilename(packagename, 0);
     }
     private String getFilename(String packagename, int past) {
-        return packagename+"-"+(getDay()-past)+".json";
+        return packagename+"-"+(getTimeBlock()-past)+".json";
     }
 
     
@@ -186,12 +191,12 @@ public class PermissionLogger {
     }
     
     public void cleanup() {
-        int today = getDay();
+        int now = getTimeBlock();
         ArrayList<File> toDelete = new ArrayList<File>();
         synchronized(lock) {
             createOutDirectory();
             for (File child : outdir.listFiles()) {
-                if ( (today - getDay(child.lastModified())) < numDaysBacklog) {
+                if ( (now - getTimeBlock(child.lastModified())) < (numTimeUnitsBacklog)) {
                     toDelete.add(child);
                 }
             }
@@ -210,7 +215,7 @@ public class PermissionLogger {
         List<String> lines = new ArrayList<String>();
         
         synchronized (lock) {       
-            for (int i=numDaysBacklog-1; i>=0; i--) {
+            for (int i=numTimeUnitsBacklog-1; i>=0; i--) {
                 try {
                     File outfile = new File(outdir,getFilename(packagename, i));
                     BufferedReader reader = new BufferedReader(new FileReader(outfile));
@@ -268,7 +273,7 @@ public class PermissionLogger {
     void readInPreferences() {
         uuid = prefs.getString(KEY_UUID, uuid);
         uploadURL = prefs.getString(KEY_UPLOAD_URL, uploadURL);
-        numDaysBacklog = prefs.getInt(KEY_BACKLOG_DAYS, numDaysBacklog);
+        numTimeUnitsBacklog = prefs.getInt(KEY_BACKLOG_TIME, numTimeUnitsBacklog);
         shouldUpload = prefs.getBoolean(KEY_SHOULD_UPLOAD, shouldUpload);
     }
     
