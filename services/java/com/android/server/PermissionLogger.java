@@ -80,8 +80,7 @@ public class PermissionLogger {
      * Recreate the output directory. it may be deleted whenever.
      */
     private void createOutDirectory() {
-        //outdir = new File(Environment.getDataDirectory(), "AndroMEDA");
-        outdir = new File(Environment.getExternalStorageDirectory(), "AndroMEDA");
+        outdir = new File(Environment.getDataDirectory(), "AndroMEDA");
         outdir.setReadable(true, false);
         outdir.mkdirs();
     }
