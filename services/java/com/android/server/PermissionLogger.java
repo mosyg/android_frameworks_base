@@ -34,8 +34,8 @@ import android.util.Log;
 public class PermissionLogger {
     public final static String TAG = "AndroMEDA";
     
-    private final static String SHARED_PREFS = "AndroMEDA-Logging-Prefs";
-    private final static String UPLOADED_RECORD = "AndroMEDA-Logging-Records";
+    private final static String SHARED_PREFS = "AndroMEDA_Logging_Prefs";
+    private final static String UPLOADED_RECORD = "AndroMEDA_Logging_Records";
     private final static String KEY_UUID = "uuid";
     private final static String KEY_UPLOAD_URL = "uploadurl";
     private final static String KEY_BACKLOG_DAYS = "backlogdays";
@@ -251,8 +251,8 @@ public class PermissionLogger {
     /**** Preferences Stuff ****/
     
     void initPreferences() {
-        prefs = mContext.getSharedPreferences(SHARED_PREFS, 0);
-        uploaded = mContext.getSharedPreferences(UPLOADED_RECORD, 0);
+        prefs = mContext.getSharedPreferences(SHARED_PREFS, Context.MODE_PRIVATE);
+        uploaded = mContext.getSharedPreferences(UPLOADED_RECORD, Context.MODE_PRIVATE);
         //make a UUID if we don't have one yet
         if (prefs.getString(KEY_UUID, "").equals("")){
             putString(prefs, KEY_UUID, UUID.randomUUID().toString());
@@ -261,9 +261,7 @@ public class PermissionLogger {
     }
     
     void putString(SharedPreferences prefs, String key, String value) {
-        Editor e = prefs.edit();
-        e.putString(key, value);
-        e.apply();
+        prefs.edit().putString(key, value).apply();
     }
     
     
@@ -292,15 +290,11 @@ public class PermissionLogger {
     }
     
     void setHasUploaded(File file) {
-        Editor e = uploaded.edit();
-        e.putBoolean(file.getName(), true);
-        e.commit();
+        uploaded.edit().putBoolean(file.getName(), true).apply();
     }
     
     void removeUploaded(File file) {
-        Editor e = uploaded.edit();
-        e.remove(file.getName());
-        e.commit();
+        uploaded.edit().remove(file.getName()).apply();
     }
 
     void doUpload(File file) throws IOException {
