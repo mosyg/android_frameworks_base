@@ -57,17 +57,8 @@ public class PermissionService extends IPermissionService.Stub {
     private ConcurrentLinkedQueue<PermissionEvent> eventList = new ConcurrentLinkedQueue<PermissionEvent>();
     private ConcurrentHashMap<Integer,String[]> knownUids = new ConcurrentHashMap<Integer,String[]>();
 
-    private String[] filteredPackages = {
-        "com.android.systemui",
-        "com.google.android.location",
-        "com.google.android.syncadapters.contacts",
-        "com.android.providers.downloads",
-        "com.android.vending",
-        "com.google.android.apps.uploader",
-    };
-
-
     private Notification mNotification;    
+    private PermissionLogger logger;
     
 
 
@@ -79,6 +70,8 @@ public class PermissionService extends IPermissionService.Stub {
         mWorker.start();
         mWriter = new WriteThread();
         mWriter.start();
+
+        logger = new PermissionLogger(context);
 
         Log.i(TAG, "Spawned worker thread");
     }
@@ -138,49 +131,16 @@ public class PermissionService extends IPermissionService.Stub {
     }
 
     private class WriteThread extends Thread {
+        int count = 0;
         public void run() {
             while (true) {
                 try {
-                    //Log.i(TAG, "Starting write in global thread");
-                    HashMap<String,ArrayList<PermissionEvent>> eventsByPackage = new HashMap<String,ArrayList<PermissionEvent>>();
-                    File outdir = new File(Environment.getDataDirectory(), "AndroMEDA");
-                    outdir.setReadable(true, false);
-                    outdir.mkdirs();
-                    File outfile = new File(outdir,"all.json");
-                    outfile.setReadable(true, false);
-                    FileWriter writer = new FileWriter(outfile, true);
-                    PermissionEvent next = null;
-                    while ( (next = eventList.poll()) != null) {
-                        //Log.i(TAG, "writing item in global thread "+next.message);
-                        writer.append(next.toJSON().toString(4));
-                        writer.append("\n");
-                        if (isUserApp(next)) {
-                            PermissionEvent event = next;
-                            String key = "unknown";
-                            if (event.packagenames != null && event.packagenames.length > 0) 
-                                key = event.packagenames[0];
-                            if (eventsByPackage.containsKey(key) == false) 
-                                eventsByPackage.put(key, new ArrayList<PermissionEvent>());
-                            eventsByPackage.get(key).add(event);
-                            //Log.i(TAG, "Adding "+event+" to "+key);
-                        }
+                    logger.log(eventList);
+                    if (count % ((60 * 60 * 12) / 4) == 0) {
+                        logger.cleanup();
                     }
-                    //for (String data : pendingOutput) writer.append(data);
-                    writer.flush();
-                    writer.close();
-                    //Log.i(TAG, "finishing write in global thread to "+outfile.getAbsolutePath());
-
-                    for (Map.Entry<String,ArrayList<PermissionEvent>> pair : eventsByPackage.entrySet()) {
-                        outfile = new File(outdir,pair.getKey()+".json");
-                        outfile.setReadable(true, false);
-                        writer = new FileWriter(outfile, true);
-                        //Log.i(TAG, "writing "+pair.getValue().size()+" events to "+outfile.getAbsolutePath());
-                        for ( PermissionEvent event : pair.getValue()) {
-                            writer.append(event.toJSON().toString());
-                            writer.append("\n");
-                        }
-                        writer.flush();
-                        writer.close();
+                    if (count % ((60 * 60) / 4) == 0) {
+                        logger.upload();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -191,32 +151,16 @@ public class PermissionService extends IPermissionService.Stub {
                 } catch (Exception e) {
                     //don't care
                 }
+                count += 1;
             }
         }
     }
 
     private void process(PermissionEvent event) {
-        if (isUserApp(event) == false) return; //don't care about user app
+        if (logger.shouldLogApp(event) == false) return; //don't care about user app
         for (Detector detector : rules) {
             detector.process(event);
         }
-    }
-    private boolean isUserApp(PermissionEvent event) {
-        if ( (Process.FIRST_APPLICATION_UID <= event.uid && event.uid <= Process.LAST_APPLICATION_UID) == false)
-            return false;
-    
-        if (event.packagenames == null) return false;
-        for (String fp : filteredPackages) {
-            for (String ep : event.packagenames) {
-                if (ep != null && ep.equals(fp)) {
-                    //Log.i(TAG, "Filtering out package "+ep);
-                    return false;
-                }
-            }
-        }
-        
-
-        return true;
     }
 
     private void postNewSecurityEvent(SecurityEvent event) {
@@ -228,30 +172,10 @@ public class PermissionService extends IPermissionService.Stub {
 
 
     public List<String> getEvents(String packagename) {
-        mContext.checkCallingPermission("android.permission.GET_PERMISSION_HISTORY");
         try {
-            File outdir = new File(Environment.getDataDirectory(), "AndroMEDA");
-            File outfile = new File(outdir,packagename+".json");
-            BufferedReader reader = new BufferedReader(new FileReader(outfile));
-            List<String> lines = new ArrayList<String>();
-            for (String line=reader.readLine(); line != null; line=reader.readLine()) {
-                lines.add(line);
-            }
-            try {
-                for (PermissionEvent event : eventList) {
-                    if (event.packagenames != null && event.packagenames.length > 0) { 
-                        String key = event.packagenames[0];
-                        if (packagename.equals(key)) {
-                            lines.add(event.toJSON().toString());
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return lines;
+            return logger.getEvents(packagename);
         } catch (Exception e) {
-            return null;
+            return new ArrayList<String>();
         }
     }
     

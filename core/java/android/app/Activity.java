@@ -1041,7 +1041,7 @@ public class Activity extends ContextThemeWrapper
 
         getApplication().dispatchActivityStarted(this);
         /* Event logging for AndroMEDA */
-        getPermissionsManager().onActivityStart();
+        ((PermissionsManager) getSystemService(Context.PERMISSIONS_SERVICE)).onActivityStart(this);
     }
 
     /**
@@ -1372,7 +1372,7 @@ public class Activity extends ContextThemeWrapper
         mCalled = true;
 
         /* Event logging for AndroMEDA */
-        getPermissionsManager().onActivityStop();
+        ((PermissionsManager) getSystemService(Context.PERMISSIONS_SERVICE)).onActivityStop(this);
     }
 
     /**

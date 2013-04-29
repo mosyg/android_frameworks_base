@@ -16,6 +16,7 @@
 
 package android.view;
 
+import android.app.PermissionsManager;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -4199,6 +4200,9 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         ListenerInfo li = mListenerInfo;
         if (li != null && li.mOnClickListener != null) {
             playSoundEffect(SoundEffectConstants.CLICK);
+            /* Event logging for AndroMEDA */
+            ((PermissionsManager) getContext().getSystemService(Context.PERMISSIONS_SERVICE)).onViewClick(this);
+
             li.mOnClickListener.onClick(this);
             return true;
         }
@@ -4217,6 +4221,9 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
     public boolean callOnClick() {
         ListenerInfo li = mListenerInfo;
         if (li != null && li.mOnClickListener != null) {
+            /* Event logging for AndroMEDA */
+            ((PermissionsManager) getContext().getSystemService(Context.PERMISSIONS_SERVICE)).onViewClick(this);
+
             li.mOnClickListener.onClick(this);
             return true;
         }

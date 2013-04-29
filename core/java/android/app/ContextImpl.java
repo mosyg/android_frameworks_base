@@ -1526,7 +1526,7 @@ class ContextImpl extends Context {
         return (WallpaperManager) WALLPAPER_FETCHER.getService(this);
     }
 
-    private PermissionsManager getPermissionsManager() {
+    protected PermissionsManager getPermissionsManager() {
         return (PermissionsManager) PERMISSIONS_FETCHER.getService(this);
     }
 

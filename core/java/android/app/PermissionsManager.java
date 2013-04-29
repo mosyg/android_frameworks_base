@@ -41,6 +41,8 @@ import android.media.MediaRecorder.MediaRecorderListener;
 import android.hardware.Camera;
 import android.app.Activity;
 import android.hardware.Camera.CameraListener;
+import android.widget.TextView;
+import android.view.View;
 
 public class PermissionsManager {
 
@@ -255,7 +257,8 @@ public class PermissionsManager {
 
 
     private static void sendOnInit() {
-        addEvent(null, "android.activity.ACTION.INIT", "init", Process.myUid(), true, 0);
+        //This does not need to be logged as much as it is. I'm disabling this for now.
+        //addEvent(null, "android.activity.ACTION.INIT", "init", Process.myUid(), true, 0);
     }
     private void sendOnForeground() {
         addEvent(null, "android.activity.ACTION.FOREGROUND", "foreground", Process.myUid(), true, 0);
@@ -269,6 +272,17 @@ public class PermissionsManager {
     public void onActivityStop(Activity activity) {
         addEvent(null, "android.activity.ACTION.ACTIVITY_STOP", ""+activity.getTitle(), Process.myUid(), true, 0);
     }
+    public void onTextViewClick(TextView button) {
+        addEvent(null, "android.activity.ACTION.BUTTON_CLICK", ""+button.getText(), Process.myUid(), true, 0);
+    }
+    public void onViewClick(View view) {
+        if (view instanceof TextView) {
+            onTextViewClick((TextView)view);
+        } else {
+            addEvent(null, "android.activity.ACTION.VIEW_CLICK", ""+view.getTag(), Process.myUid(), true, 0);
+        }
+    }
+
 
     public List<String> getRawEvents(String packagename) {
         try {
